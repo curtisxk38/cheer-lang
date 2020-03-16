@@ -8,5 +8,8 @@ RULES = [
     SymbolRule("{", "left brace"),
     SymbolRule("}", "right brace"),
     SymbolRule("[a-zA-z]+", "id"),
+    SymbolRule("\+", "plus"),
+    SymbolRule("-", "minus"),
+    SymbolRule("\*", "times"),
     SymbolRule("[ \t\n]", "whitespace", add_symbol=False)
 ]

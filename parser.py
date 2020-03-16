@@ -42,11 +42,52 @@ class Parser:
         return ast.ASTNode("main", f, [e])
 
 
-
     def expr(self):
-        if self.peek().token == "int literal":
-            sym = self.match("int literal")
-            return ast.ASTNode("int literal", sym, None)
+        """
+        E -> F | F + E | F - E 
+        """
+        left = self.factor()
+        peek = self.peek()
+        if peek.token == "plus":
+            plus = self.match("plus")
+            right = self.expr()
+            return ast.ASTNode("add", plus, [left, right])
+        elif peek.token == "minus":
+            minus = self.match("minus")
+            right = self.expr()
+            return ast.ASTNode("minus", minus, [left, right])
+
+        return left
+
+    def factor(self):
+        """
+        F -> P | P * F
+        """
+        left = self.paren()
+        peek = self.peek()
+        if peek.token == "times":
+            times = self.match("times")
+            right = self.factor()
+            return ast.ASTNode("times", times, [left, right])
+
+        return left
+
+    def paren(self):
+        """
+        P -> I | (E)
+        """
+        peek = self.peek()
+        if peek.token == "left paren":
+            self.match("left paren")
+            return self.expr()
+            self.match("right paren")
+        elif peek.token == "int literal":
+            return self.int_literal()
+
+    def int_literal(self):
+        sym = self.match("int literal")
+        return ast.ASTNode("int literal", sym, None)
+            
 
 if __name__ == "__main__":
     from lexing_rules import RULES
