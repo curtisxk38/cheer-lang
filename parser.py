@@ -79,8 +79,9 @@ class Parser:
         peek = self.peek()
         if peek.token == "left paren":
             self.match("left paren")
-            return self.expr()
+            ex = self.expr()
             self.match("right paren")
+            return ex
         elif peek.token == "int literal":
             return self.int_literal()
 
