@@ -1,6 +1,7 @@
 from typing import List
 
 import scanner
+import ast
 
 
 class Parser:
@@ -15,10 +16,12 @@ class Parser:
         print(e)
 
     def start(self):
-        self.fn()
+        root = self.fn()
 
         if self.peek().token != "EOF":
             self.error(f"Expected end of file, got {self.peek()}")
+
+        return root
 
     def match(self, token):
         peek = self.peek()
@@ -30,12 +33,20 @@ class Parser:
 
     def fn(self):
         self.match("function def")
-        self.match("id")
+        f = self.match("id")
         self.match("left paren")
         self.match("right paren")
         self.match("left brace")
-        self.match("int literal")
+        e = self.expr()
         self.match("right brace")
+        return ast.ASTNode("main", f, [e])
+
+
+
+    def expr(self):
+        if self.peek().token == "int literal":
+            sym = self.match("int literal")
+            return ast.ASTNode("int literal", sym, None)
 
 if __name__ == "__main__":
     from lexing_rules import RULES
@@ -45,4 +56,5 @@ if __name__ == "__main__":
         symbols = scanner.scan(f, RULES)
 
     p = Parser(symbols)
-    p.start()
+    root = p.start()
+    print(ast.gen_ast_digraph(root))
