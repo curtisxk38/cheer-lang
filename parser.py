@@ -41,19 +41,50 @@ class Parser:
         self.match("right brace")
         return ast.ASTNode("main", f, [s])
 
-
     def statement(self):
+        """
+        S -> return E
+        S -> if (E) { L }
+        S -> if (E) { L } else { L }
+        """
         peek = self.peek()
         if peek.token == "return":
             r = self.match("return")
             e = self.expr()
             return ast.ASTNode("return_exp", r, [e])
+        if peek.token == "if":
+            i = self.match("if")
+            self.match("left paren")
+            e = self.expr()
+            self.match("right paren")
+            self.match("left brace")
+            l1 = self.statement_list()
+            self.match("right brace")
+            l2 = None
+            if self.peek().token == "else":
+                self.match("else")
+                self.match("left brace")
+                l2 = self.statement_list()
+                self.match("right brace")
+            # children are:
+            #  expression condition, if statement list, else statement list
+            #  else statment list could be None
+            return ast.ASTNode("if_else", i, [e, l1, l2])
+
+    def statement_list(self):
+        raise NotImplementedError()
 
     def expr(self):
         """
         E -> T
+        E -> T == T
         """
         t = self.term()
+        peek = self.peek()
+        if peek.token == "equality":
+            e = self.match("equality")
+            t2 = self.term()
+            return ast.ASTNode("equality_exp", e, [t, t2])
         return t
         
 

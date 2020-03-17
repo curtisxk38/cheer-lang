@@ -1,8 +1,12 @@
-# inline ASM in llvm ir
+## gen llvm ir from c
+
+`clang -S -emit-llvm sample.c -o sample.ll`
+
+## inline ASM in llvm ir
 
 Learned from [here](http://llvm.org/docs/LangRef.html#inline-assembler-expressions)
 
-## Syscall
+### Syscall
 ```
 %3 = call i32 asm sideeffect "movl $$0x00000000, %edi\0Amovl $$0x00000002, %edx\0Amovl $$0, %eax\0Asyscall\0A", "={ax},{si},~{dirflag},~{fpsr},~{flags}"(i8* %2)
 ```
@@ -44,7 +48,7 @@ syscall syntax [here](https://blog.rchapman.org/posts/Linux_System_Call_Table_fo
 
 remember, we told llvm to put an address into `rsi`, `rsi` is the address of the buffer to write what we read
 
-## gcc
+### gcc
 
 LLVM ir mostly follows gcc extended asm convention? according to llvm docs:
 

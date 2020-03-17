@@ -1,6 +1,9 @@
+from typing import List
+
 import visit
 
 indent = "  "
+
 
 class Module:
     def __init__(self):
@@ -12,6 +15,7 @@ class Module:
             lines.extend(func.to_code())
             lines.append("\n")
         return lines
+
 
 class Function:
     def __init__(self, name, return_type):
@@ -27,6 +31,7 @@ class Function:
         lines.append("}")
         return lines
 
+
 class BasicBlock:
     def __init__(self, name):
         self.name = name
@@ -37,6 +42,13 @@ class BasicBlock:
 
     def add_instr(self, line):
         self.lines.append(indent + line)
+
+
+class Var:
+    def __init__(self, name, t):
+        self.name = name
+        self.type = t
+
 
 class CodeGenVisitor(visit.DFSVisitor):
     def __init__(self, ast):
@@ -67,32 +79,42 @@ class CodeGenVisitor(visit.DFSVisitor):
         self.add_line("store i32 {}, i32* %{}".format(node.symbol.value, self.reg_num))
         self.reg_num += 1
         self.add_line("%{} = load i32, i32* %{}, align 4".format(self.reg_num, self.reg_num - 1))
-        self.exp_stack.append(self.reg_num)
+        self.exp_stack.append(Var(self.reg_num, "i32"))
+        self.reg_num += 1
+
+    def _out_equality_exp(self, node):
+        op2 = self.exp_stack.pop()
+        op1 = self.exp_stack.pop()
+        self.add_line(f"%{self.reg_num} = icmp eq i32 %{op1.name}, %{op2.name}")
+        self.reg_num += 1
+        self.add_line(f"%{self.reg_num} = zext i1 %{self.reg_num - 1} to i32")
+        self.exp_stack.append(Var(self.reg_num, "i32"))
         self.reg_num += 1
 
     def _out_plus_exp(self, node):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
-        self.add_line("%{} = add i32 %{}, %{}".format(self.reg_num, op1, op2))
-        self.exp_stack.append(self.reg_num)
+        self.add_line("%{} = add i32 %{}, %{}".format(self.reg_num, op1.name, op2.name))
+        self.exp_stack.append(Var(self.reg_num, "i32"))
         self.reg_num += 1
 
     def _out_minus_exp(self, node):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
-        self.add_line("%{} = sub i32 %{}, %{}".format(self.reg_num, op1, op2))
-        self.exp_stack.append(self.reg_num)
+        self.add_line("%{} = sub i32 %{}, %{}".format(self.reg_num, op1.name, op2.name))
+        self.exp_stack.append(Var(self.reg_num, "i32"))
         self.reg_num += 1
 
     def _out_times_exp(self, node):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
-        self.add_line("%{} = mul i32 %{}, %{}".format(self.reg_num, op1, op2))
-        self.exp_stack.append(self.reg_num)
+        self.add_line("%{} = mul i32 %{}, %{}".format(self.reg_num, op1.name, op2.name))
+        self.exp_stack.append(Var(self.reg_num, "i32"))
         self.reg_num += 1
 
     def _out_return_exp(self, node):
-        self.add_line("ret i32 %{}".format(self.reg_num - 1))
+        op1 = self.exp_stack.pop()
+        self.add_line(f"ret {op1.type} %{op1.name}")
 
     def _out_input_exp(self, node):
         """
@@ -123,5 +145,5 @@ class CodeGenVisitor(visit.DFSVisitor):
         self.add_line("%{} = load i8, i8* %{}, align 1".format(self.reg_num, self.reg_num - 2))
         self.reg_num += 1
         self.add_line("%{} = sext i8 %{} to i32".format(self.reg_num, self.reg_num - 1))
-        self.exp_stack.append(self.reg_num)
+        self.exp_stack.append(Var(self.reg_num, "i32"))
         self.reg_num += 1

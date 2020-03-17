@@ -14,6 +14,7 @@ RULES = [
     SymbolRule("input", "input"),
     SymbolRule("if", "if"),
     SymbolRule("else", "else"),
+    SymbolRule("==", "equality"),
 
     
     SymbolRule("[a-zA-z]+", "id"),
