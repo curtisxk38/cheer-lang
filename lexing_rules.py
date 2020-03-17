@@ -7,9 +7,12 @@ RULES = [
     SymbolRule("\)", "right paren"),
     SymbolRule("{", "left brace"),
     SymbolRule("}", "right brace"),
-    SymbolRule("[a-zA-z]+", "id"),
     SymbolRule("\+", "plus"),
     SymbolRule("-", "minus"),
     SymbolRule("\*", "times"),
+    SymbolRule("return", "return"),
+
+    
+    SymbolRule("[a-zA-z]+", "id"),
     SymbolRule("[ \t\n]", "whitespace", add_symbol=False)
 ]

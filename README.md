@@ -1,5 +1,11 @@
 # Cheer
 
+## Planned features
+
+- [ ] functions
+- [ ] type inference
+
+
 ## Compiling
 
 ```

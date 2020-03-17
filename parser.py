@@ -44,17 +44,25 @@ class Parser:
 
     def expr(self):
         """
-        E -> F | F + E | F - E 
+        E -> return T
+        """
+        r = self.match("return")
+        e = self.term()
+        return ast.ASTNode("return_exp", r, [e])
+
+    def term(self):
+        """
+        T -> F | F + T | F - T 
         """
         left = self.factor()
         peek = self.peek()
         if peek.token == "plus":
             plus = self.match("plus")
-            right = self.expr()
+            right = self.term()
             return ast.ASTNode("plus_exp", plus, [left, right])
         elif peek.token == "minus":
             minus = self.match("minus")
-            right = self.expr()
+            right = self.term()
             return ast.ASTNode("minus_exp", minus, [left, right])
 
         return left
@@ -79,7 +87,7 @@ class Parser:
         peek = self.peek()
         if peek.token == "left paren":
             self.match("left paren")
-            ex = self.expr()
+            ex = self.term()
             self.match("right paren")
             return ex
         elif peek.token == "int literal":

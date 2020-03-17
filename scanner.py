@@ -17,7 +17,10 @@ class Symbol:
         self.col = col # column number
 
     def __repr__(self):
-        return "{}<{}> at ({},{})".format(self.token, self.lexeme,self.line,self.col)
+        return "{}<{}> at ({},{})".format(self.token, self.lexeme, self.line, self.col)
+
+    def location(self):
+        return f"({self.line}, {self.col}"
 
     def __eq__(self, other):
         if not isinstance(other, Symbol):
