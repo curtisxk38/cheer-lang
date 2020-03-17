@@ -12,6 +12,8 @@ RULES = [
     SymbolRule("\*", "times"),
     SymbolRule("return", "return"),
     SymbolRule("input", "input"),
+    SymbolRule("if", "if"),
+    SymbolRule("else", "else"),
 
     
     SymbolRule("[a-zA-z]+", "id"),
