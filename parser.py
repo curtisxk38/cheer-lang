@@ -37,18 +37,25 @@ class Parser:
         self.match("left paren")
         self.match("right paren")
         self.match("left brace")
-        e = self.expr()
+        s = self.statement()
         self.match("right brace")
-        return ast.ASTNode("main", f, [e])
+        return ast.ASTNode("main", f, [s])
 
+
+    def statement(self):
+        peek = self.peek()
+        if peek.token == "return":
+            r = self.match("return")
+            e = self.expr()
+            return ast.ASTNode("return_exp", r, [e])
 
     def expr(self):
         """
-        E -> return T
+        E -> T
         """
-        r = self.match("return")
-        e = self.term()
-        return ast.ASTNode("return_exp", r, [e])
+        t = self.term()
+        return t
+        
 
     def term(self):
         """
