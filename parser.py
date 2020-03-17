@@ -61,16 +61,18 @@ class Parser:
             self.match("left brace")
             l1 = self.statement_list()
             self.match("right brace")
-            l2 = None
             if self.peek().token == "else":
                 self.match("else")
                 self.match("left brace")
                 l2 = self.statement_list()
                 self.match("right brace")
+                # children are:
+                #  expression condition, if statement list, else statment list
+                return ast.ASTNode("if_else", i, [e, l1, l2])
+                
             # children are:
-            #  expression condition, if statement list, else statement list
-            #  else statment list could be None
-            return ast.ASTNode("if_else", i, [e, l1, l2])
+            #  expression condition, if statement list
+            return ast.ASTNode("if_else", i, [e, l1])
 
     def statement_list(self):
         """
