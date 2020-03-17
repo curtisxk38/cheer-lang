@@ -2,3 +2,5 @@
 __pycache__/
 *.ll
 *.s
+*.o
+*.out
