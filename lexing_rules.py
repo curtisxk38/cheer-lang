@@ -11,6 +11,7 @@ RULES = [
     SymbolRule("-", "minus"),
     SymbolRule("\*", "times"),
     SymbolRule("return", "return"),
+    SymbolRule("input", "input"),
 
     
     SymbolRule("[a-zA-z]+", "id"),

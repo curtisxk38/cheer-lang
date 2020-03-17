@@ -92,6 +92,11 @@ class Parser:
             return ex
         elif peek.token == "int literal":
             return self.int_literal()
+        elif peek.token == "input":
+            i = self.match("input")
+            self.match("left paren")
+            self.match("right paren")
+            return ast.ASTNode("input_exp", i, None)
 
     def int_literal(self):
         sym = self.match("int literal")
