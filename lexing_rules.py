@@ -15,6 +15,7 @@ RULES = [
     SymbolRule("if", "if"),
     SymbolRule("else", "else"),
     SymbolRule("==", "equality"),
+    SymbolRule(";", "semicolon"),
 
     
     SymbolRule("[a-zA-z]+", "id"),

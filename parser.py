@@ -37,7 +37,7 @@ class Parser:
         self.match("left paren")
         self.match("right paren")
         self.match("left brace")
-        s = self.statement()
+        s = self.statement_list()
         self.match("right brace")
         return ast.ASTNode("main", f, [s])
 
@@ -51,6 +51,7 @@ class Parser:
         if peek.token == "return":
             r = self.match("return")
             e = self.expr()
+            self.match("semicolon")
             return ast.ASTNode("return_exp", r, [e])
         if peek.token == "if":
             i = self.match("if")
@@ -72,7 +73,16 @@ class Parser:
             return ast.ASTNode("if_else", i, [e, l1, l2])
 
     def statement_list(self):
-        raise NotImplementedError()
+        """
+        L -> S L | S
+        assume all statement lists must end if next token is }
+        """
+        statements = []
+        s = self.statement()
+        statements.append(s)
+        while self.peek().token != "right brace":
+            statements.append(self.statement())
+        return ast.ASTNode("statement_list", s.symbol, statements)
 
     def expr(self):
         """

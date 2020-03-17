@@ -1,4 +1,6 @@
 
 fn main() {
-	return 5 == 5
+	if (5 == 3) {
+		return 5 + 4;
+	}
 }
