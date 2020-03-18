@@ -54,7 +54,7 @@ class CodeGenVisitor(visit.DFSVisitor):
     def __init__(self, ast):
         super().__init__(ast)
         self.reg_num = 1
-        self.exp_stack = []
+        self.exp_stack: List[Var] = []
 
         self.main = Function("main", "i32")
         self.block = BasicBlock("entry")
