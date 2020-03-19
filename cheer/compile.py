@@ -4,7 +4,6 @@ import os
 from cheer.lexing_rules import RULES
 from cheer import scanner
 from cheer import parser
-from cheer import sys
 from cheer import gen_ir
 from cheer import ast
 
