@@ -1,7 +1,7 @@
 from typing import List
 
-import scanner
-import ast
+from cheer import scanner
+from cheer import ast
 
 
 class Parser:
@@ -154,7 +154,7 @@ class Parser:
             
 
 if __name__ == "__main__":
-    from lexing_rules import RULES
+    from cheer.lexing_rules import RULES
     import sys
     fname = sys.argv[1]
     with open(fname) as f:

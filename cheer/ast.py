@@ -1,7 +1,7 @@
-from typing import List
+from typing import List, Dict
 import collections
 
-import scanner
+from cheer import scanner
 
 class ASTNode:
     def __init__(self, ntype: str, symbol: scanner.Symbol, children: List['ASTNode']):

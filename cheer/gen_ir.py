@@ -1,6 +1,6 @@
 from typing import List
 
-import visit
+from cheer import visit
 
 indent = "  "
 

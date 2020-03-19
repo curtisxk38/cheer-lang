@@ -5,3 +5,5 @@ __pycache__/
 *.o
 *.out
 *.c
+*.egg-info/
+*.coverage
