@@ -2,6 +2,6 @@
 
 set -e
 
-pytest
+pytest --cov=cheer
 mypy cheer
 flake8

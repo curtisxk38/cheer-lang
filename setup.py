@@ -10,5 +10,6 @@ setup(
             'mypy',
             'flake8',
             'pytest',
+            'pytest-cov',
         ]
     })
