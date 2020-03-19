@@ -1,5 +1,5 @@
-import sys
 import re
+
 
 class SymbolRule:
     def __init__(self, re, token_name, to_value=lambda _: -1, add_symbol=True):
@@ -7,6 +7,7 @@ class SymbolRule:
         self.token_name = token_name
         self.to_value = to_value
         self.add_symbol = add_symbol
+
 
 class Symbol:
     def __init__(self, token, lexeme, value, line, col):

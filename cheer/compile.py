@@ -1,12 +1,12 @@
 import argparse
 import os
 
-from lexing_rules import RULES
-import scanner
-import parser
-import sys
-import gen_ir
-import ast
+from cheer.lexing_rules import RULES
+from cheer import scanner
+from cheer import parser
+from cheer import sys
+from cheer import gen_ir
+from cheer import ast
 
 def main(parsed):
     with open(parsed.input) as f:

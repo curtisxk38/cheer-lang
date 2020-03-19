@@ -1,4 +1,4 @@
-from scanner import SymbolRule
+from cheer.scanner import SymbolRule
 
 RULES = [
     SymbolRule("fn", "function def"),
