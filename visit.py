@@ -22,7 +22,6 @@ class DFSVisitor:
          but some node types you do
         """
         visit_name = f"_visit_{node.ntype}"
-        print(node.ntype)
         if visit_name in self.methods:
             getattr(self, visit_name)(node)
         else:

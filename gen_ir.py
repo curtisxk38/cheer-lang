@@ -39,12 +39,18 @@ class BasicBlock:
         self.name = name
         self.lines = []
         self.lines.append(f"{name}:")
+        self.terminated = False
 
     def to_code(self):
         return self.lines
 
     def add_instr(self, line):
-        self.lines.append(indent + line)
+        if not self.terminated:
+            self.lines.append(indent + line)
+            if line.startswith("ret") or line.startswith("br"):
+                self.terminated = True
+        else:
+            print(f"ignoring line: {line}, basic block already terminated")
 
 
 class Var:
@@ -61,8 +67,8 @@ class CodeGenVisitor(visit.DFSVisitor):
         self.exp_stack: List[Var] = []
 
         self.main = Function("main", "i32")
-        self.block = BasicBlock("entry")
-        self.main.basic_blocks.append(self.block)
+        bb = BasicBlock("entry")
+        self.main.basic_blocks.append(bb)
 
     def default_in_visit(self, node):
         # override
@@ -76,51 +82,44 @@ class CodeGenVisitor(visit.DFSVisitor):
         return "\n".join(self.main.to_code())
 
     def add_line(self, line):
-        self.block.add_instr(line)
+        self.main.basic_blocks[-1].add_instr(line)
 
     ###### STATEMENTS #######
 
     def _visit_if_statement(self, node):
-        # first gen code for the condition
-        self.visit_node(node.children[0])
-        
-        condition = self.exp_stack.pop()
+        # set up basic blocks
         if_body = BasicBlock(f"if_taken{self.bb_num}")    
         self.bb_num += 1
-        self.main.basic_blocks.append(if_body)
-
         if_else_end = BasicBlock(f"if_else_end{self.bb_num}")
         self.bb_num += 1
-
-        # if without else
-        if len(node.children) == 2:
-            self.add_line(f"br i1 %{condition.name}, label %{if_body.name}, label %{if_else_end.name}")
-
-            # gen code for if taken body
-            self.block = if_body
-            self.visit_node(node.children[1])
-            # gen last line of if_body basic block, to jump to next basic block
-            self.add_line(f"br label %{if_else_end.name}")
-        # if with else
-        else:
+        
+        # first gen code for the condition
+        self.visit_node(node.children[0])
+        # gen code conditional branch
+        condition = self.exp_stack.pop()
+        if len(node.children) == 3:
             else_body = BasicBlock(f"else_taken{self.bb_num}")
-            self.bb_num += 1
-            self.add_line(f"br i1 %{condition.name}, label %{if_body.name}, label %{else_body.name}")
+            block_after_if_body = else_body
+        else:
+            block_after_if_body = if_else_end
+        self.add_line(f"br i1 %{condition.name}, label %{if_body.name}, label %{block_after_if_body.name}")
 
-            # gen code for if taken body
-            self.block = if_body
-            self.visit_node(node.children[1])
-            # gen last line of if_body basic block, to jump to next basic block
-            self.add_line(f"br label %{if_else_end.name}")
+        # gen code for if taken body
+        self.main.basic_blocks.append(if_body)
+        self.visit_node(node.children[1])
+        # gen last line of if_body basic block, to jump to next basic block
+        self.add_line(f"br label %{if_else_end.name}")
+
+        # gen code for else
+        if len(node.children) == 3:
+            self.bb_num += 1
 
             # gen code for else taken body
-            self.block = else_body
             self.main.basic_blocks.append(else_body)
             self.visit_node(node.children[2])
             # gen last line of else body bb, to jump to next bb
             self.add_line(f"br label %{if_else_end.name}")
 
-        self.block = if_else_end
         self.main.basic_blocks.append(if_else_end)
 
     def _out_return(self, node):
