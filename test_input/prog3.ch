@@ -5,5 +5,4 @@ fn main() {
 	} else {
 		return 3 - 2;
 	}
-	return 4;
 }

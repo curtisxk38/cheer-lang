@@ -120,7 +120,11 @@ class CodeGenVisitor(visit.DFSVisitor):
             # gen last line of else body bb, to jump to next bb
             self.add_line(f"br label %{if_else_end.name}")
 
-        self.main.basic_blocks.append(if_else_end)
+        # is this if-else statment the last in a statement list?
+        last_statement = node.parent.ntype == "statement_list" and \
+            node.parent.children[-1] is node
+        if not last_statement:
+            self.main.basic_blocks.append(if_else_end)
 
     def _out_return(self, node):
         op1 = self.exp_stack.pop()
