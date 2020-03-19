@@ -4,4 +4,4 @@ set -e
 
 pytest --cov=cheer
 mypy cheer
-flake8
+# flake8
