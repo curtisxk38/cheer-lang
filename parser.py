@@ -37,18 +37,68 @@ class Parser:
         self.match("left paren")
         self.match("right paren")
         self.match("left brace")
-        e = self.expr()
+        s = self.statement_list()
         self.match("right brace")
-        return ast.ASTNode("main", f, [e])
+        return ast.ASTNode("main", f, [s])
 
+    def statement(self):
+        """
+        S -> return E
+        S -> if (E) { L }
+        S -> if (E) { L } else { L }
+        """
+        peek = self.peek()
+        if peek.token == "return":
+            r = self.match("return")
+            e = self.expr()
+            self.match("semicolon")
+            return ast.ASTNode("return", r, [e])
+        if peek.token == "if":
+            i = self.match("if")
+            self.match("left paren")
+            e = self.expr()
+            self.match("right paren")
+            self.match("left brace")
+            l1 = self.statement_list()
+            self.match("right brace")
+            if self.peek().token == "else":
+                self.match("else")
+                self.match("left brace")
+                l2 = self.statement_list()
+                self.match("right brace")
+                # children are:
+                #  expression condition, if statement list, else statment list
+                return ast.ASTNode("if_statement", i, [e, l1, l2])
+                
+            # children are:
+            #  expression condition, if statement list
+            return ast.ASTNode("if_statement", i, [e, l1])
+
+    def statement_list(self):
+        """
+        L -> S L | S
+        assume all statement lists must end if next token is }
+        """
+        statements = []
+        s = self.statement()
+        statements.append(s)
+        while self.peek().token != "right brace":
+            statements.append(self.statement())
+        return ast.ASTNode("statement_list", s.symbol, statements)
 
     def expr(self):
         """
-        E -> return T
+        E -> T
+        E -> T == T
         """
-        r = self.match("return")
-        e = self.term()
-        return ast.ASTNode("return_exp", r, [e])
+        t = self.term()
+        peek = self.peek()
+        if peek.token == "equality":
+            e = self.match("equality")
+            t2 = self.term()
+            return ast.ASTNode("equality_exp", e, [t, t2])
+        return t
+        
 
     def term(self):
         """
