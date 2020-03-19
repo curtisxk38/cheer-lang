@@ -16,7 +16,8 @@ RULES = [
     SymbolRule("else", "else"),
     SymbolRule("==", "equality"),
     SymbolRule(";", "semicolon"),
-
+    SymbolRule("let", "let"),
+    SymbolRule("=", "assign"),
     
     SymbolRule("[a-zA-z]+", "id"),
     SymbolRule("[ \t\n]", "whitespace", add_symbol=False)

@@ -43,9 +43,11 @@ class Parser:
 
     def statement(self):
         """
-        S -> return E
+        S -> return E;
         S -> if (E) { L }
         S -> if (E) { L } else { L }
+        S -> let <id>;
+        S -> <id> = E;
         """
         peek = self.peek()
         if peek.token == "return":
@@ -53,7 +55,7 @@ class Parser:
             e = self.expr()
             self.match("semicolon")
             return ast.ASTNode("return", r, [e])
-        if peek.token == "if":
+        elif peek.token == "if":
             i = self.match("if")
             self.match("left paren")
             e = self.expr()
@@ -73,6 +75,17 @@ class Parser:
             # children are:
             #  expression condition, if statement list
             return ast.ASTNode("if_statement", i, [e, l1])
+        elif peek.token == "let":
+            self.match("let")
+            i = self.match("id")
+            self.match("semicolon")
+            return ast.ASTNode("var_decl", i, None)
+        elif peek.token == "id":
+            self.match("id")
+            e = self.match("assign")
+            ex = self.expr()
+            self.match("semicolon")
+            return ast.ASTNode("assignment", e, [ex])
 
     def statement_list(self):
         """
