@@ -52,7 +52,7 @@ class Parser:
             r = self.match("return")
             e = self.expr()
             self.match("semicolon")
-            return ast.ASTNode("return_exp", r, [e])
+            return ast.ASTNode("return", r, [e])
         if peek.token == "if":
             i = self.match("if")
             self.match("left paren")
@@ -68,11 +68,11 @@ class Parser:
                 self.match("right brace")
                 # children are:
                 #  expression condition, if statement list, else statment list
-                return ast.ASTNode("if_else", i, [e, l1, l2])
+                return ast.ASTNode("if_statement", i, [e, l1, l2])
                 
             # children are:
             #  expression condition, if statement list
-            return ast.ASTNode("if_else", i, [e, l1])
+            return ast.ASTNode("if_statement", i, [e, l1])
 
     def statement_list(self):
         """

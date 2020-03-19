@@ -26,8 +26,10 @@ class Function:
     def to_code(self):
         lines = []
         lines.append("define {} @{}() {{".format(self.return_type, self.name))
-        for block in self.basic_blocks:
+        for index, block in enumerate(self.basic_blocks):
             lines.extend(block.to_code())
+            if index < len(self.basic_blocks) - 1:
+                lines.append("")
         lines.append("}")
         return lines
 
@@ -36,6 +38,7 @@ class BasicBlock:
     def __init__(self, name):
         self.name = name
         self.lines = []
+        self.lines.append(f"{name}:")
 
     def to_code(self):
         return self.lines
@@ -53,7 +56,8 @@ class Var:
 class CodeGenVisitor(visit.DFSVisitor):
     def __init__(self, ast):
         super().__init__(ast)
-        self.reg_num = 1
+        self.reg_num = 0
+        self.bb_num = 1
         self.exp_stack: List[Var] = []
 
         self.main = Function("main", "i32")
@@ -74,6 +78,58 @@ class CodeGenVisitor(visit.DFSVisitor):
     def add_line(self, line):
         self.block.add_instr(line)
 
+    ###### STATEMENTS #######
+
+    def _visit_if_statement(self, node):
+        # first gen code for the condition
+        self.visit_node(node.children[0])
+        
+        condition = self.exp_stack.pop()
+        if_body = BasicBlock(f"if_taken{self.bb_num}")    
+        self.bb_num += 1
+        self.main.basic_blocks.append(if_body)
+
+        if_else_end = BasicBlock(f"if_else_end{self.bb_num}")
+        self.bb_num += 1
+
+        # if without else
+        if len(node.children) == 2:
+            self.add_line(f"br i1 %{condition.name}, label %{if_body.name}, label %{if_else_end.name}")
+
+            # gen code for if taken body
+            self.block = if_body
+            self.visit_node(node.children[1])
+            # gen last line of if_body basic block, to jump to next basic block
+            self.add_line(f"br label %{if_else_end.name}")
+        # if with else
+        else:
+            else_body = BasicBlock(f"else_taken{self.bb_num}")
+            self.bb_num += 1
+            self.add_line(f"br i1 %{condition.name}, label %{if_body.name}, label %{else_body.name}")
+
+            # gen code for if taken body
+            self.block = if_body
+            self.visit_node(node.children[1])
+            # gen last line of if_body basic block, to jump to next basic block
+            self.add_line(f"br label %{if_else_end.name}")
+
+            # gen code for else taken body
+            self.block = else_body
+            self.main.basic_blocks.append(else_body)
+            self.visit_node(node.children[2])
+            # gen last line of else body bb, to jump to next bb
+            self.add_line(f"br label %{if_else_end.name}")
+
+        self.block = if_else_end
+        self.main.basic_blocks.append(if_else_end)
+
+    def _out_return(self, node):
+        op1 = self.exp_stack.pop()
+        self.add_line(f"ret {op1.type} %{op1.name}")
+
+
+    ###### EXPRESSIONS #######
+
     def _out_int_literal(self, node):
         self.add_line("%{} = alloca i32, align 4".format(self.reg_num))
         self.add_line("store i32 {}, i32* %{}".format(node.symbol.value, self.reg_num))
@@ -86,10 +142,11 @@ class CodeGenVisitor(visit.DFSVisitor):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
         self.add_line(f"%{self.reg_num} = icmp eq i32 %{op1.name}, %{op2.name}")
+        self.exp_stack.append(Var(self.reg_num, "i1"))
         self.reg_num += 1
-        self.add_line(f"%{self.reg_num} = zext i1 %{self.reg_num - 1} to i32")
-        self.exp_stack.append(Var(self.reg_num, "i32"))
-        self.reg_num += 1
+        #self.add_line(f"%{self.reg_num} = zext i1 %{self.reg_num - 1} to i32")
+        
+        #self.reg_num += 1
 
     def _out_plus_exp(self, node):
         op2 = self.exp_stack.pop()
@@ -111,10 +168,6 @@ class CodeGenVisitor(visit.DFSVisitor):
         self.add_line("%{} = mul i32 %{}, %{}".format(self.reg_num, op1.name, op2.name))
         self.exp_stack.append(Var(self.reg_num, "i32"))
         self.reg_num += 1
-
-    def _out_return_exp(self, node):
-        op1 = self.exp_stack.pop()
-        self.add_line(f"ret {op1.type} %{op1.name}")
 
     def _out_input_exp(self, node):
         """
