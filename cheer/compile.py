@@ -6,6 +6,7 @@ from cheer import scanner
 from cheer import parser
 from cheer import gen_ir
 from cheer import ast
+from cheer import type_checker
 
 
 def main(parsed):
@@ -18,7 +19,10 @@ def main(parsed):
     if parsed.verbose:
         print(ast.gen_ast_digraph(ast_root))
 
-    gen_code = gen_ir.CodeGenVisitor(ast_root)
+    tc = type_checker.TCVisitor(ast_root)
+    tc.type_check()
+
+    gen_code = gen_ir.CodeGenVisitor(ast_root, tc.symbol_table)
     gen_code.accept()
 
     oname = parsed.output

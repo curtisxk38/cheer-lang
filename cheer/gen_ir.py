@@ -60,7 +60,7 @@ class Var:
 
 
 class CodeGenVisitor(visit.DFSVisitor):
-    def __init__(self, ast):
+    def __init__(self, ast, symbol_table):
         super().__init__(ast)
         self.reg_num = 0
         self.bb_num = 1

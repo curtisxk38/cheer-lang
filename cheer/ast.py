@@ -13,6 +13,9 @@ class ASTNode:
         for c in self.children:
             c.parent = self
 
+    def __repr__(self):
+        return f"ASTNode<{self.ntype}>"
+
 def gen_ast_digraph(root: ASTNode):
     """
     generate diagram for ast rooted at this node
