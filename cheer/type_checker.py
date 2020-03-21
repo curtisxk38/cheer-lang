@@ -47,6 +47,18 @@ class TCVisitor(visit.DFSVisitor):
         node.type = node.children[0].type
         self.symbol_table.create(node)
 
+    def _out_assignment(self, node):
+        lhs = node.children[0]
+        try:
+            t = self.symbol_table.get(lhs.symbol.lexeme)
+        except KeyError:
+            msg = f"Assignment to variable {lhs.symbol.lexeme} before declaration\n"
+            msg += f"{lhs.symbol}"
+            self.error(msg)
+        if t != node.children[1].type:
+            msg = f"Assignment to {lhs.symbol.lexeme} should be {t} not {node.children[1].type}"
+            self.error(msg)
+
     # assumes children nodes should have matching types
     def op_helper(self, node, valid_types):
         t = node.children[0].type
