@@ -39,6 +39,9 @@ class TCVisitor(visit.DFSVisitor):
             msg += f"{node.symbol}"
             self.error(msg)
 
+    def _out_input_exp(self, node):
+        node.type = "i32";
+
     def _out_var_decl(self, node):
         node.type = node.children[0].symbol.lexeme
         self.symbol_table.create(node)
