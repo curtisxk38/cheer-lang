@@ -140,11 +140,11 @@ class Parser:
         """
         Ass -> id = E
         """
-        self.match("id")
+        lhs = self.var()
         e = self.match("assign")
         ex = self.expr()
         self.match("semicolon")
-        return ast.ASTNode("assignment", e, [ex])
+        return ast.ASTNode("assignment", e, [lhs, ex])
 
     def expr(self):
         """
@@ -192,7 +192,7 @@ class Parser:
 
     def paren(self):
         """
-        P -> I | (E) | input | bool
+        P -> I | (E) | input | bool | Var
         """
         peek = self.peek()
         if peek.token == "left paren":
@@ -209,7 +209,17 @@ class Parser:
             return ast.ASTNode("input_exp", i, None)
         elif peek.token == "bool_literal":
             return self.bool_literal()
+        elif peek.token == "id":
+            return self.var()
+
         self.error(f"unexpected {peek}")
+
+    def var(self):
+        """
+        Var -> id
+        """
+        i = self.match("id")
+        return ast.ASTNode("var", i, None)
 
     def int_literal(self):
         sym = self.match("int literal")

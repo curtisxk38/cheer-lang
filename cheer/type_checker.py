@@ -1,10 +1,11 @@
 from cheer import visit
+from cheer import symbol_table
 
 
 class TCVisitor(visit.DFSVisitor):
     def __init__(self, ast):
         super().__init__(ast)
-        self.symbol_table = []
+        self.symbol_table = symbol_table.SymTable()
 
     def error(self, msg):
         raise TypeError(msg)
@@ -26,17 +27,22 @@ class TCVisitor(visit.DFSVisitor):
     def _out_bool_literal(self, node):
         node.type = "bool"
 
+    def _out_var(self, node):
+        node.type = self.symbol_table.get(node.symbol.lexeme)
+
     def _out_var_decl(self, node):
         node.type = node.children[0].symbol.lexeme
+        self.symbol_table.create(node)
 
     def _out_var_decl_assign(self, node):
         node.type = node.children[0].type
+        self.symbol_table.create(node)
 
     # assumes children nodes should have matching types
     def op_helper(self, node, valid_types):
         t = node.children[0].type
         if valid_types and t not in valid_types:
-            msg = f"Expected {c1} to have one of types: {valid_types}"
+            msg = f"Expected {node.children[0]} ({t}) to have one of types: {valid_types}"
             self.error(msg)
             return None
         for c in node.children[1:]:
