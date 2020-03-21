@@ -2,13 +2,17 @@ from cheer import visit
 from cheer import symbol_table
 
 
+class TypeCheckingError(Exception):
+    pass
+
+
 class TCVisitor(visit.DFSVisitor):
     def __init__(self, ast):
         super().__init__(ast)
         self.symbol_table = symbol_table.SymTable()
 
     def error(self, msg):
-        raise TypeError(msg)
+        raise TypeCheckingError(msg)
 
     def type_check(self):
         self.accept()
@@ -28,7 +32,12 @@ class TCVisitor(visit.DFSVisitor):
         node.type = "bool"
 
     def _out_var(self, node):
-        node.type = self.symbol_table.get(node.symbol.lexeme)
+        try:
+            node.type = self.symbol_table.get(node.symbol.lexeme)
+        except KeyError:
+            msg = f"Use of variable {node.symbol.lexeme} before declaration\n"
+            msg += f"{node.symbol}"
+            self.error(msg)
 
     def _out_var_decl(self, node):
         node.type = node.children[0].symbol.lexeme
