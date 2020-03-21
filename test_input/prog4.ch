@@ -1,9 +1,8 @@
 
 fn main() {
-    let x: i32;
-    x = input();
-    let y = 6 == 5 + 1;
-    y = false;
+    let x = 4;
+    let y = x + 1;
+    y = y + y;
     if (5 == 3) {
         return 5 + 4;
     } else {
