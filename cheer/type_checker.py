@@ -7,4 +7,12 @@ class TCVisitor(visit.DFSVisitor):
         self.symbol_table = []
 
     def type_check(self):
-    	self.accept()
+        self.accept()
+
+    def default_in_visit(self, node):
+        # override
+        pass
+
+    def default_out_visit(self, node):
+        # override
+        pass

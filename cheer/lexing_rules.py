@@ -18,6 +18,10 @@ RULES = [
     SymbolRule(";", "semicolon"),
     SymbolRule("let", "let"),
     SymbolRule("=", "assign"),
+    SymbolRule(":", "colon"),
+    SymbolRule("i32", "i32"),
+    SymbolRule("bool", "bool"),
+    SymbolRule("true | false", "bool_literal", to_value=lambda x: x == "true"),
     
     SymbolRule("[a-zA-z]+", "id"),
     SymbolRule("[ \t\n]", "whitespace", add_symbol=False)
