@@ -19,3 +19,20 @@ def test_scanner():
     ]
 
     assert expected == tokens
+
+def test_scanner_to_value():
+    rules = [
+        scanner.SymbolRule(r"true|false", "bool_literal", to_value=lambda x: x == "true"),
+        scanner.SymbolRule("[ \n]", "whitespace", add_symbol=False)
+    ]
+
+    source = ["true false       true"]
+    tokens = scanner.scan(source, rules)
+    print(tokens)
+    expected = [
+        scanner.Symbol("bool_literal", "true", True, 1, 1),
+        scanner.Symbol("bool_literal", "false", False, 1, 6),
+        scanner.Symbol("bool_literal", "true", True, 1, 18),
+    ]
+
+    assert expected == tokens

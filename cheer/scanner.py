@@ -76,12 +76,12 @@ def dummy_tokenize(input_str):
 
 def main():
     rules = [
-        SymbolRule("def", "function def"), 
-        SymbolRule("[a-zA-z]+", "id"),
+        SymbolRule(r"true|false", "bool_literal", to_value=lambda x: x == "true"),
         SymbolRule("[ \n]", "whitespace", add_symbol=False)
     ]
-    with open("test_input/scan.log", "r") as infile:
-        print(scan(infile, rules))
+
+    source = ["true false       true"]
+    tokens = scan(source, rules)
 
 
 if __name__ == "__main__":

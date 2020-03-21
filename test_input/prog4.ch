@@ -1,10 +1,11 @@
 
 fn main() {
-	let x;
-	x = 5 + 4;
-	if (5 == 3) {
-		return 5 + 4;
-	} else {
-		return 3 - 2;
-	}
+    let x: i32;
+    x = 5 + 4;
+    let y = 6 == 5 + 1;
+    if (5 == 3) {
+        return 5 + 4;
+    } else {
+        return 3 - 2;
+    }
 }

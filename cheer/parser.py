@@ -118,7 +118,7 @@ class Parser:
             self.match("assign")
             e = self.expr()
             self.match("semicolon")
-            return ASTNode("var_decl_assign", i, [e])
+            return ast.ASTNode("var_decl_assign", i, [e])
         # let id: Ty
         self.match("colon")
         ty = self.type_decl()
@@ -131,8 +131,9 @@ class Parser:
         """
         peek = self.peek()
         valid_type_tokens = ["i32", "bool", "id"]
-        if peek in valid_type_tokens:
-            return self.match(peek)
+        if peek.token in valid_type_tokens:
+            t = self.match(peek.token)
+            return ast.ASTNode(peek.token, t, None)
         self.error(f"Expected a type found: {peek}")
 
     def assign_statement(self):
@@ -191,7 +192,7 @@ class Parser:
 
     def paren(self):
         """
-        P -> I | (E)
+        P -> I | (E) | input | bool
         """
         peek = self.peek()
         if peek.token == "left paren":
@@ -206,6 +207,9 @@ class Parser:
             self.match("left paren")
             self.match("right paren")
             return ast.ASTNode("input_exp", i, None)
+        elif peek.token == "bool_literal":
+            return self.bool_literal()
+        self.error(f"unexpected {peek}")
 
     def int_literal(self):
         sym = self.match("int literal")
