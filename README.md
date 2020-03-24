@@ -6,8 +6,8 @@ Cheer is inspired by Rust syntax (but doesn't have the ownership system)
 
 ## Roadmap / Planned features
 
-- [ ] if/else
-- [ ] local variables
+- [x] if/else
+- [x] local variables
 - [ ] while loop
 - [ ] functions
 - [ ] inline assembly
@@ -29,6 +29,7 @@ Cheer is inspired by Rust syntax (but doesn't have the ownership system)
     - [ ] Constant Fold
     - [ ] Peephole
     - (from `Frances Allen, 1971 - A Catalogue of optimizing transformations`)
+- [ ] self hosted compiler
 
 ## Compiling
 
