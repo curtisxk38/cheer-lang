@@ -11,7 +11,15 @@ class STE:
     def __init__(self, node, been_assigned):
         self.node = node
         self.been_assigned = been_assigned;
+        self.scope = 0
 
+        # for IR gen
+        self.reg_num = 0
+        self.ir_name = ""
+
+    # name of SSA IR var
+    def get_ssa_new_name(self):
+        return f"{self.node.lexeme}.{self.scope}.{self.reg_num}"
 
 class SymTable:
     def __init__(self):
@@ -26,8 +34,8 @@ class SymTable:
 
         self.st[node.symbol.lexeme] = STE(node, been_assigned)
 
-    def get(self, node: str):
-        return self.st[node]
+    def get(self, node: ast.ASTNode):
+        return self.st[node.symbol.lexeme]
 
-    def get_type(self, node: str):
-        return self.st[node].node.type
+    def get_type(self, node: ast.ASTNode):
+        return self.st[node.symbol.lexeme].node.type

@@ -65,6 +65,7 @@ class CodeGenVisitor(visit.DFSVisitor):
         self.reg_num = 0
         self.bb_num = 1
         self.exp_stack: List[Var] = []
+        self.symbol_table = symbol_table
 
         self.main = Function("main", "i32")
         bb = BasicBlock("entry")
@@ -130,6 +131,24 @@ class CodeGenVisitor(visit.DFSVisitor):
         op1 = self.exp_stack.pop()
         self.add_line(f"ret {op1.type} %{op1.name}")
 
+    def _out_var_decl_assign(self, node):
+        ste = self.symbol_table.get(node)
+        op1 = self.exp_stack.pop()
+        ste.ir_name = op1.name
+        self.exp_stack.append(op1)
+
+    def _visit_assignment(self, node):
+        # visit rhs (expression)
+        self.visit_node(node.children[1])
+        # ste for lhs
+        ste = self.symbol_table.get(node.children[0])
+        op1 = self.exp_stack.pop()
+        ste.ir_name = op1.name
+        self.exp_stack.append(op1)
+
+    def _out_var(self, node):
+        ste = self.symbol_table.get(node)
+        self.exp_stack.append(Var(ste.ir_name, node.type))
 
     ###### EXPRESSIONS #######
 
