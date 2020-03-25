@@ -2,7 +2,7 @@ import re
 
 
 class SymbolRule:
-    def __init__(self, re, token_name, to_value=lambda _: -1, add_symbol=True):
+    def __init__(self, re, token_name, to_value=lambda _: None, add_symbol=True):
         self.re = re
         self.token_name = token_name
         self.to_value = to_value
@@ -18,7 +18,7 @@ class Symbol:
         self.col = col # column number
 
     def __repr__(self):
-        return "{}<{}> at ({},{})".format(self.token, self.lexeme, self.line, self.col)
+        return f"{self.token}<{self.lexeme}> at ({self.line},{self.col})"
 
     def location(self):
         return f"({self.line}, {self.col}"
