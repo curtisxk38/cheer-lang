@@ -16,6 +16,7 @@ class TCVisitor(visit.DFSVisitor):
 
     def type_check(self):
         self.accept()
+        return True
 
     def default_in_visit(self, node):
         # override
@@ -39,6 +40,7 @@ class TCVisitor(visit.DFSVisitor):
             msg += f"{node.symbol}"
             self.error(msg)
 
+        print(node.symbol)
         if not self.symbol_table.get(node).been_assigned:
             msg = f"Use of variable {node.symbol.lexeme} before assignment\n"
             msg += f"{node.symbol}"
