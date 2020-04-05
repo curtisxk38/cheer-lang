@@ -1,3 +1,4 @@
+from typing import List
 from cheer import visit
 from cheer import symbol_table
 
@@ -6,10 +7,20 @@ class TypeCheckingError(Exception):
     pass
 
 
+class Scope:
+    def __init__(self, scope_num):
+        self.scope_num = scope_num
+
+    def __hash__(self):
+        return hash(Self.scope_num)
+
+
 class TCVisitor(visit.DFSVisitor):
     def __init__(self, ast):
         super().__init__(ast)
         self.symbol_table = symbol_table.SymTable()
+        self.scope_num = 0
+        self.scope_stack: List[Scope] = []
 
     def error(self, msg):
         raise TypeCheckingError(msg)
@@ -25,6 +36,14 @@ class TCVisitor(visit.DFSVisitor):
     def default_out_visit(self, node):
         # override
         pass
+
+    def _in_statement_list(self, node):
+        new_scope = Scope(self.scope_num)
+        self.scope_num += 1
+        self.scope_stack.append(new_scope)
+
+    def _out_statement_list(self, node):
+        self.scope_stack.pop()
 
     def _out_int_literal(self, node):
         node.type = "i32"
