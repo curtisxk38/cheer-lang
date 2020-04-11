@@ -45,14 +45,13 @@ class TCVisitor(visit.DFSVisitor):
 
     def _out_var(self, node):
         try:
-            node.type = self.symbol_table.get_type(node, self.scope_stack[-1])
-        except KeyError:
+            node.type = self.symbol_table.get_type(node, self.scope_stack)
+        except symbol_table.NotDeclaredError:
             msg = f"Use of variable {node.symbol.lexeme} before declaration\n"
             msg += f"{node.symbol}"
             self.error(msg)
 
-        print(node.symbol)
-        if not self.symbol_table.get(node, self.scope_stack[-1]).been_assigned:
+        if not self.symbol_table.get(node, self.scope_stack).is_assigned_in_scope(self.scope_stack):
             msg = f"Use of variable {node.symbol.lexeme} before assignment\n"
             msg += f"{node.symbol}"
             self.error(msg)
@@ -62,11 +61,11 @@ class TCVisitor(visit.DFSVisitor):
 
     def _out_var_decl(self, node):
         node.type = node.children[0].symbol.lexeme
-        self.symbol_table.create(node, self.scope_stack[-1])
+        self.symbol_table.create(node, self.scope_stack)
 
     def _out_var_decl_assign(self, node):
         node.type = node.children[0].type
-        self.symbol_table.create(node, self.scope_stack[-1], been_assigned=True)
+        self.symbol_table.create(node, self.scope_stack, assigned_scope=self.scope_stack[-1])
 
     def _visit_assignment(self, node):
         """
@@ -79,8 +78,8 @@ class TCVisitor(visit.DFSVisitor):
         
         lhs = node.children[0]
         try:
-            t = self.symbol_table.get_type(lhs, self.scope_stack[-1])
-        except KeyError:
+            t = self.symbol_table.get_type(lhs, self.scope_stack)
+        except symbol_table.NotDeclaredError:
             msg = f"Assignment to variable {lhs.symbol.lexeme} before declaration\n"
             msg += f"{lhs.symbol}"
             self.error(msg)
@@ -88,7 +87,7 @@ class TCVisitor(visit.DFSVisitor):
             msg = f"Assignment to {lhs.symbol.lexeme} should be {t} not {node.children[1].type}"
             self.error(msg)
 
-        self.symbol_table.get(lhs, self.scope_stack[-1]).been_assigned = True
+        self.symbol_table.get(lhs, self.scope_stack).assign_in_scope(self.scope_stack[-1])
 
     # assumes children nodes should have matching types
     def op_helper(self, node, valid_types):
