@@ -18,7 +18,7 @@ Cheer is inspired by Rust syntax (but doesn't have the ownership system)
 - [ ] standard library - allocate on the heap
 - [ ] match statements
 - [ ] Some, Ok types
-- [ ] compiler backend: create our own llvm ir -> x86 64 instead of using llc
+- [ ] compiler backend: create own llvm ir -> x86 64 instead of using llc
 - [ ] standard library - garbage collection allocation
 - [ ] optimizations: 
     - [ ] Inline
@@ -37,6 +37,14 @@ Currently requires `llc` and `gcc`
 
 ```
 ./compile.sh test_input/prog2.ch
+```
+
+For some reason the llvm assembler can't assemble the output of llc.
+
+Just generating llvm ir:
+
+```
+python3 cheer/compile.py -i test_input/prog4.ch
 ```
 
 ## Run tests
