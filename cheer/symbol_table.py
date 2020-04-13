@@ -21,7 +21,10 @@ class Scope:
         self.scope_num = scope_num
 
     def __hash__(self):
-        return hash(self.scope_num)
+        return self.scope_num
+
+    def __eq__(self, other):
+        return self.scope_num == other.scope_num
 
     def __repr__(self):
         return str(self.scope_num)
@@ -39,7 +42,7 @@ class STE:
         self.ir_name = ""
 
     def __repr__(self):
-        return str(f"{self.node}, {self.assigned_scopes}")
+        return str(f"<{self.node}, Scopes: {self.assigned_scopes}>")
 
     def assign_in_scope(self, scope: Scope):
         self.assigned_scopes.add(scope)
@@ -62,7 +65,7 @@ class SymTable:
         if node.ntype != "var_decl" and node.ntype != "var_decl_assign":
             raise ValueError(f"expected var type, not {node.ntype}")
         if node.symbol.lexeme in self.st:
-            raise AlreadyCreatedError(f"lexeme {node.symbol.lexeme} already exists in this scope")
+            raise AlreadyCreatedError(f"lexeme {node.symbol} already exists in this scope")
 
         ste = STE(node)
         self.st[scope_stack[-1]][node.symbol.lexeme] = ste
@@ -78,7 +81,7 @@ class SymTable:
                 # didn't exist in that scope
                 pass
         # tried all scopes in the scope stack and it wasn't in any of them
-        raise NotDeclaredError(f"{node.symbol.lexeme} is not declared in available scopes")
+        raise NotDeclaredError(f"{node.symbol} is not declared in available scopes")
 
     def get_type(self, node: ast.ASTNode, scope_stack: List[Scope]):
         return self.get(node, scope_stack).node.type

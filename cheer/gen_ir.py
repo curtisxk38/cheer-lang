@@ -1,6 +1,6 @@
 from typing import List
 
-from cheer import visit
+from cheer import visit, symbol_table
 
 indent = "  "
 
@@ -60,16 +60,19 @@ class Var:
 
 
 class CodeGenVisitor(visit.DFSVisitor):
-    def __init__(self, ast, symbol_table):
+    def __init__(self, ast, st):
         super().__init__(ast)
         self.reg_num = 0
         self.bb_num = 1
         self.exp_stack: List[Var] = []
-        self.symbol_table = symbol_table
+        self.symbol_table = st
 
         self.main = Function("main", "i32")
         bb = BasicBlock("entry")
         self.main.basic_blocks.append(bb)
+
+        self.scope_num = 0
+        self.scope_stack: List[symbol_table.Scope] = []
 
     def default_in_visit(self, node):
         # override
@@ -86,6 +89,14 @@ class CodeGenVisitor(visit.DFSVisitor):
         self.main.basic_blocks[-1].add_instr(line)
 
     ###### STATEMENTS #######
+
+    def _in_statement_list(self, node):
+        new_scope = symbol_table.Scope(self.scope_num)
+        self.scope_num += 1
+        self.scope_stack.append(new_scope)
+
+    def _out_statement_list(self, node):
+        self.scope_stack.pop()
 
     def _visit_if_statement(self, node):
         # set up basic blocks
@@ -132,7 +143,7 @@ class CodeGenVisitor(visit.DFSVisitor):
         self.add_line(f"ret {op1.type} %{op1.name}")
 
     def _out_var_decl_assign(self, node):
-        ste = self.symbol_table.get(node)
+        ste = self.symbol_table.get(node, self.scope_stack)
         op1 = self.exp_stack.pop()
         ste.ir_name = op1.name
         self.exp_stack.append(op1)
@@ -141,13 +152,13 @@ class CodeGenVisitor(visit.DFSVisitor):
         # visit rhs (expression)
         self.visit_node(node.children[1])
         # ste for lhs
-        ste = self.symbol_table.get(node.children[0])
+        ste = self.symbol_table.get(node.children[0], self.scope_stack)
         op1 = self.exp_stack.pop()
         ste.ir_name = op1.name
         self.exp_stack.append(op1)
 
     def _out_var(self, node):
-        ste = self.symbol_table.get(node)
+        ste = self.symbol_table.get(node, self.scope_stack)
         self.exp_stack.append(Var(ste.ir_name, node.type))
 
     ###### EXPRESSIONS #######
