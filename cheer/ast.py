@@ -13,6 +13,19 @@ class ASTNode:
         for c in self.children:
             c.parent = self
 
+    def __repr__(self):
+        return f"ASTNode<{self.ntype}>"
+
+    def __eq__(self, other):
+        if not isinstance(other, ASTNode):
+            return False
+        return (self.ntype, self.symbol, tuple(self.children)) == \
+            (other.ntype, other.symbol, tuple(other.children))
+
+    def __hash__(self):
+        return hash( (self.ntype, self.symbol, tuple(self.children)) )
+
+
 def gen_ast_digraph(root: ASTNode):
     """
     generate diagram for ast rooted at this node

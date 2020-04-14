@@ -41,39 +41,6 @@ class Parser:
         self.match("right brace")
         return ast.ASTNode("main", f, [s])
 
-    def statement(self):
-        """
-        S -> return E
-        S -> if (E) { L }
-        S -> if (E) { L } else { L }
-        """
-        peek = self.peek()
-        if peek.token == "return":
-            r = self.match("return")
-            e = self.expr()
-            self.match("semicolon")
-            return ast.ASTNode("return", r, [e])
-        if peek.token == "if":
-            i = self.match("if")
-            self.match("left paren")
-            e = self.expr()
-            self.match("right paren")
-            self.match("left brace")
-            l1 = self.statement_list()
-            self.match("right brace")
-            if self.peek().token == "else":
-                self.match("else")
-                self.match("left brace")
-                l2 = self.statement_list()
-                self.match("right brace")
-                # children are:
-                #  expression condition, if statement list, else statment list
-                return ast.ASTNode("if_statement", i, [e, l1, l2])
-                
-            # children are:
-            #  expression condition, if statement list
-            return ast.ASTNode("if_statement", i, [e, l1])
-
     def statement_list(self):
         """
         L -> S L | S
@@ -85,6 +52,99 @@ class Parser:
         while self.peek().token != "right brace":
             statements.append(self.statement())
         return ast.ASTNode("statement_list", s.symbol, statements)
+
+    def statement(self):
+        """
+        S -> R
+        S -> If
+        S -> Let
+        S -> Ass
+        """
+        peek = self.peek()
+
+        if peek.token == "return":
+            return self.return_statement()
+        elif peek.token == "if":
+            return self.if_statement()
+
+        elif peek.token == "let":
+            return self.var_decl_statement()
+        
+        elif peek.token == "id":
+            return self.assign_statement()
+            
+
+    def return_statement(self):
+        """
+        R -> return E
+        """
+        r = self.match("return")
+        e = self.expr()
+        self.match("semicolon")
+        return ast.ASTNode("return", r, [e])
+
+    def if_statement(self):
+        """
+        If -> if (E) { L } | if (E) { L } else { L }
+        """
+        i = self.match("if")
+        self.match("left paren")
+        e = self.expr()
+        self.match("right paren")
+        self.match("left brace")
+        l1 = self.statement_list()
+        self.match("right brace")
+        if self.peek().token == "else":
+            self.match("else")
+            self.match("left brace")
+            l2 = self.statement_list()
+            self.match("right brace")
+            # children are:
+            #  expression condition, if statement list, else statment list
+            return ast.ASTNode("if_statement", i, [e, l1, l2])
+            
+        # children are:
+        #  expression condition, if statement list
+        return ast.ASTNode("if_statement", i, [e, l1])
+
+    def var_decl_statement(self):
+        """
+        Let -> let id = E; | let id: Ty;
+        """
+        self.match("let")
+        i = self.match("id")
+        # let id = E
+        if self.peek().token == "assign":
+            self.match("assign")
+            e = self.expr()
+            self.match("semicolon")
+            return ast.ASTNode("var_decl_assign", i, [e])
+        # let id: Ty
+        self.match("colon")
+        ty = self.type_decl()
+        self.match("semicolon")
+        return ast.ASTNode("var_decl", i, [ty])
+
+    def type_decl(self):
+        """
+        Ty -> i32 | bool | <id>
+        """
+        peek = self.peek()
+        valid_type_tokens = ["i32", "bool", "id"]
+        if peek.token in valid_type_tokens:
+            t = self.match(peek.token)
+            return ast.ASTNode(peek.token, t, None)
+        self.error(f"Expected a type found: {peek}")
+
+    def assign_statement(self):
+        """
+        Ass -> id = E
+        """
+        lhs = self.var()
+        e = self.match("assign")
+        ex = self.expr()
+        self.match("semicolon")
+        return ast.ASTNode("assignment", e, [lhs, ex])
 
     def expr(self):
         """
@@ -132,7 +192,7 @@ class Parser:
 
     def paren(self):
         """
-        P -> I | (E)
+        P -> I | (E) | input | bool | Var
         """
         peek = self.peek()
         if peek.token == "left paren":
@@ -147,10 +207,27 @@ class Parser:
             self.match("left paren")
             self.match("right paren")
             return ast.ASTNode("input_exp", i, None)
+        elif peek.token == "bool_literal":
+            return self.bool_literal()
+        elif peek.token == "id":
+            return self.var()
+
+        self.error(f"unexpected {peek}")
+
+    def var(self):
+        """
+        Var -> id
+        """
+        i = self.match("id")
+        return ast.ASTNode("var", i, None)
 
     def int_literal(self):
         sym = self.match("int literal")
         return ast.ASTNode("int_literal", sym, None)
+
+    def bool_literal(self):
+        s = self.match("bool_literal")
+        return ast.ASTNode("bool_literal", s, None)
             
 
 if __name__ == "__main__":

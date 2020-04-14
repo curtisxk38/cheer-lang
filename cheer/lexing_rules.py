@@ -16,8 +16,13 @@ RULES = [
     SymbolRule("else", "else"),
     SymbolRule("==", "equality"),
     SymbolRule(";", "semicolon"),
-
+    SymbolRule("let", "let"),
+    SymbolRule("=", "assign"),
+    SymbolRule(":", "colon"),
+    SymbolRule("i32", "i32"),
+    SymbolRule("bool", "bool"),
+    SymbolRule(r"true|false", "bool_literal", to_value=lambda x: x == "true"),
     
-    SymbolRule("[a-zA-z]+", "id"),
+    SymbolRule(r"[a-zA-z][\w]*", "id"),
     SymbolRule("[ \t\n]", "whitespace", add_symbol=False)
 ]
