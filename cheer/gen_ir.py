@@ -61,7 +61,10 @@ class Var:
 
 class Phi:
     def __init__(self):
-        self.map = {}
+        self.map: Dict[str, symbol_table.STE] = {}
+
+    def __repr__(self):
+        return str(self.map)
 
 
 class CodeGenVisitor(visit.DFSVisitor):
@@ -126,6 +129,9 @@ class CodeGenVisitor(visit.DFSVisitor):
             block_after_if_body = if_else_end
         self.add_line(f"br i1 %{condition.name}, label %{if_body.name}, label %{block_after_if_body.name}")
 
+        # keep track
+        start_basic_block = self.main.basic_blocks[-1]
+
         # gen code for if taken body
         self.main.basic_blocks.append(if_body)
         self.visit_node(node.children[1])
@@ -155,6 +161,33 @@ class CodeGenVisitor(visit.DFSVisitor):
             node.parent.children[-1] is node
         if not last_statement:
             self.main.basic_blocks.append(if_else_end)
+            # left scope, lets deal with the phi
+            phi = self.phi_stack.pop()
+            for lexeme, ste in phi.map.items():
+                if len(node.children) == 3:
+                    _, else_ir_name = ste.ir_names.pop()
+                    _, if_ir_name = ste.ir_names.pop()
+
+                    phi_code = "%{} = phi {} [%{}, %{}], [%{}, %{}]".format(
+                        self.reg_num,
+                        ste.node.type,
+                        if_ir_name, if_body.name,
+                        else_ir_name, else_body.name
+                    )
+                else:
+                    _, if_ir_name = ste.ir_names.pop()
+                    _, start_ir_name= ste.ir_names[-1]
+
+                    phi_code = "%{} = phi {} [%{}, %{}], [%{}, %{}]".format(
+                        self.reg_num,
+                        ste.node.type,
+                        if_ir_name, if_body.name,
+                        start_ir_name, start_basic_block.name
+                    )
+                
+                self.add_line(phi_code)
+                ste.assign_to_lexeme(self.scope_stack[-1], self.reg_num)
+                self.reg_num += 1
 
     def _out_return(self, node):
         op1 = self.exp_stack.pop()
@@ -162,7 +195,7 @@ class CodeGenVisitor(visit.DFSVisitor):
 
     def _out_var_decl_assign(self, node):
         ste = self.symbol_table.get(node, self.scope_stack)
-        ste.ir_name.append(self.exp_stack[-1].name)
+        ste.assign_to_lexeme(self.scope_stack[-1], self.exp_stack[-1].name)
 
     def _visit_assignment(self, node):
         # visit rhs (expression)
@@ -177,29 +210,18 @@ class CodeGenVisitor(visit.DFSVisitor):
             # if so, need to generate phi statement
             # since we are in a conditional scope (if/else) and assigning
             phi = self.phi_stack[-1]
-            phi.map[ste.node.symbol.lexeme] = op1.name
-            ### this won't work due to
-            """
-            fn main() {
-                let x = 0; 
-                if (true) {
-                    x = 4;
-                    x = x + 1;
-                }
-            }
-            """
-            ## we would end up pushing more than once per scope
-            ste.ir_name.append(op1.name)
+            phi.map[ste.node.symbol.lexeme] = ste
+            ste.assign_to_lexeme(self.scope_stack[-1], op1.name)
         # assign to var declared in same scope
         elif ste.declared_scope == self.scope_stack[-1]:
-            ste.ir_name.append(op1.name)
+            ste.assign_to_lexeme(self.scope_stack[-1], op1.name)
         # ???
         else:
             raise ValueError("shouldn't be assigning to var declared in younger scope")
 
     def _out_var(self, node):
         ste = self.symbol_table.get(node, self.scope_stack)
-        self.exp_stack.append(Var(ste.ir_name[-1], node.type))
+        self.exp_stack.append(Var(ste.ir_names[-1][1], node.type))
 
     ###### EXPRESSIONS #######
 

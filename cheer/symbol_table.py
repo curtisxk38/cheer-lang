@@ -1,5 +1,5 @@
 import collections
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Tuple
 
 from cheer import ast
 
@@ -27,7 +27,7 @@ class Scope:
         return self.scope_num == other.scope_num
 
     def __repr__(self):
-        return str(self.scope_num)
+        return str(f"Scope<{self.scope_num}>")
 
     def __gt__(self, other):
         return self.scope_num > other.scope_num
@@ -46,7 +46,7 @@ class STE:
 
         # for IR gen, list of names
         # its a stack for the scopes this lexeme is used in
-        self.ir_name: List[str] = []
+        self.ir_names: List[Tuple[Scope, str]] = []
 
     def __repr__(self):
         return str(f"<{self.node}, Scopes: {self.assigned_scopes}>")
@@ -61,6 +61,18 @@ class STE:
                 return True
         return False
 
+    # used in IR gen, not type checking
+    def assign_to_lexeme(self, scope, ir_name):
+        # scope should be in assigned scopes
+        # if there is an entry in ir_names
+        # and the most recent entry has the same scope as the parameter
+        if len(self.ir_names) > 0 and self.ir_names[-1][0] == scope:
+            # overwrite it with the new ir_name
+            self.ir_names.pop()
+            self.ir_names.append((scope, ir_name))
+        else:
+            # create new entry in ir_names
+            self.ir_names.append((scope, ir_name))
 
 
 class SymTable:
