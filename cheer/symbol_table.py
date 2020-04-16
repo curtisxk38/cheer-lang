@@ -35,6 +35,7 @@ class STE:
         self.node = node
         # set of scopes this ste was assigned in
         self.assigned_scopes: Set[Scope] = set()
+        # scope this var is declared in
         self.scope = 0
 
         # for IR gen
@@ -58,10 +59,9 @@ class STE:
 
 class SymTable:
     def __init__(self):
-        self.scope = 1
         self.st: Dict[Scope, Dict[str, STE]] = collections.defaultdict(dict)
 
-    def create(self, node: ast.ASTNode, scope_stack: List[Scope], assigned_scope=None):
+    def create(self, node: ast.ASTNode, scope_stack: List[Scope]):
         if node.ntype != "var_decl" and node.ntype != "var_decl_assign":
             raise ValueError(f"expected var type, not {node.ntype}")
         if node.symbol.lexeme in self.st:
@@ -69,8 +69,7 @@ class SymTable:
 
         ste = STE(node)
         self.st[scope_stack[-1]][node.symbol.lexeme] = ste
-        if assigned_scope is not None:
-            ste.assign_in_scope(assigned_scope)
+        return ste
 
     def get(self, node: ast.ASTNode, scope_stack: List[Scope]):
         # walk scope stack, from youngest child scope to oldest parent scope
