@@ -31,12 +31,12 @@ class Scope:
 
 
 class STE:
-    def __init__(self, node: ast.ASTNode):
+    def __init__(self, node: ast.ASTNode, declared: Scope):
         self.node = node
         # set of scopes this ste was assigned in
         self.assigned_scopes: Set[Scope] = set()
         # scope this var is declared in
-        self.scope = 0
+        self.declared_scope: Scope = declared
 
         # for IR gen
         self.reg_num = 0
@@ -67,7 +67,7 @@ class SymTable:
         if node.symbol.lexeme in self.st:
             raise AlreadyCreatedError(f"lexeme {node.symbol} already exists in this scope")
 
-        ste = STE(node)
+        ste = STE(node, scope_stack[-1])
         self.st[scope_stack[-1]][node.symbol.lexeme] = ste
         return ste
 
