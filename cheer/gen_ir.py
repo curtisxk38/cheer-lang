@@ -162,9 +162,7 @@ class CodeGenVisitor(visit.DFSVisitor):
 
     def _out_var_decl_assign(self, node):
         ste = self.symbol_table.get(node, self.scope_stack)
-        op1 = self.exp_stack.pop()
-        ste.ir_name = op1.name
-        self.exp_stack.append(op1)
+        ste.ir_name.append(self.exp_stack[-1].name)
 
     def _visit_assignment(self, node):
         # visit rhs (expression)
@@ -180,16 +178,28 @@ class CodeGenVisitor(visit.DFSVisitor):
             # since we are in a conditional scope (if/else) and assigning
             phi = self.phi_stack[-1]
             phi.map[ste.node.symbol.lexeme] = op1.name
+            ### this won't work due to
+            """
+            fn main() {
+                let x = 0; 
+                if (true) {
+                    x = 4;
+                    x = x + 1;
+                }
+            }
+            """
+            ## we would end up pushing more than once per scope
+            ste.ir_name.append(op1.name)
         # assign to var declared in same scope
         elif ste.declared_scope == self.scope_stack[-1]:
-            ste.ir_name = op1.name
+            ste.ir_name.append(op1.name)
         # ???
         else:
             raise ValueError("shouldn't be assigning to var declared in younger scope")
 
     def _out_var(self, node):
         ste = self.symbol_table.get(node, self.scope_stack)
-        self.exp_stack.append(Var(ste.ir_name, node.type))
+        self.exp_stack.append(Var(ste.ir_name[-1], node.type))
 
     ###### EXPRESSIONS #######
 

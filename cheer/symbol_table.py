@@ -44,9 +44,9 @@ class STE:
         # scope this var is declared in
         self.declared_scope: Scope = declared
 
-        # for IR gen
-        self.reg_num = 0
-        self.ir_name = ""
+        # for IR gen, list of names
+        # its a stack for the scopes this lexeme is used in
+        self.ir_name: List[str] = []
 
     def __repr__(self):
         return str(f"<{self.node}, Scopes: {self.assigned_scopes}>")
