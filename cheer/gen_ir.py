@@ -59,6 +59,11 @@ class Var:
         self.type = t
 
 
+class Phi:
+    def __init__(self):
+        self.map = {}
+
+
 class CodeGenVisitor(visit.DFSVisitor):
     def __init__(self, ast, st):
         super().__init__(ast)
@@ -73,6 +78,8 @@ class CodeGenVisitor(visit.DFSVisitor):
 
         self.scope_num = 0
         self.scope_stack: List[symbol_table.Scope] = []
+
+        self.phi_stack = []
 
     def default_in_visit(self, node):
         # override
@@ -104,6 +111,9 @@ class CodeGenVisitor(visit.DFSVisitor):
         self.bb_num += 1
         if_else_end = BasicBlock(f"if_else_end{self.bb_num}")
         self.bb_num += 1
+
+        # set up Phi statement for assignments in condition body(ies)
+        self.phi_stack.append(Phi())
         
         # first gen code for the condition
         self.visit_node(node.children[0])
@@ -133,6 +143,14 @@ class CodeGenVisitor(visit.DFSVisitor):
             self.add_line(f"br label %{if_else_end.name}")
 
         # is this if-else statment the last in a statement list?
+        # if the if else statement was the last, then adding
+        #  another basic block is an error, since it would be empty
+        # ex:
+        # fn main() {
+        #   if (true) { return true; }
+        #   else { return false; }
+        # }
+        # we don't want another basic block after the else one
         last_statement = node.parent.ntype == "statement_list" and \
             node.parent.children[-1] is node
         if not last_statement:
@@ -153,9 +171,21 @@ class CodeGenVisitor(visit.DFSVisitor):
         self.visit_node(node.children[1])
         # ste for lhs
         ste = self.symbol_table.get(node.children[0], self.scope_stack)
-        op1 = self.exp_stack.pop()
-        ste.ir_name = op1.name
-        self.exp_stack.append(op1)
+        op1 = self.exp_stack[-1]
+
+        # figure out if we're assigning to variable declared in a parent scope
+        # we can guarantee that child scope has higher scope_num than parent scope
+        if ste.declared_scope < self.scope_stack[-1]:
+            # if so, need to generate phi statement
+            # since we are in a conditional scope (if/else) and assigning
+            phi = self.phi_stack[-1]
+            phi.map[ste.node.symbol.lexeme] = op1.name
+        # assign to var declared in same scope
+        elif ste.declared_scope == self.scope_stack[-1]:
+            ste.ir_name = op1.name
+        # ???
+        else:
+            raise ValueError("shouldn't be assigning to var declared in younger scope")
 
     def _out_var(self, node):
         ste = self.symbol_table.get(node, self.scope_stack)

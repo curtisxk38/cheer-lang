@@ -29,6 +29,12 @@ class Scope:
     def __repr__(self):
         return str(self.scope_num)
 
+    def __gt__(self, other):
+        return self.scope_num > other.scope_num
+
+    def __lt__(self, other):
+        return self.scope_num < other.scope_num
+
 
 class STE:
     def __init__(self, node: ast.ASTNode, declared: Scope):

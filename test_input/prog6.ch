@@ -1,10 +1,7 @@
 fn main() {
-    let y: i32;
-    let x = 1;
-    if (input() == 51) {
-        let x = 2;
-        return x;
+    let y = 4;
+    if (input() == 1) {
+        y = 1;
     }
-    y = x * 4;
     return y;
 }
