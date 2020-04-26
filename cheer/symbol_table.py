@@ -46,6 +46,7 @@ class STE:
 
         # for IR gen, list of names
         # its a stack for the scopes this lexeme is used in
+        # tuple of (Scope, register_name)
         self.ir_names: List[Tuple[Scope, str]] = []
 
     def __repr__(self):
