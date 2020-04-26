@@ -181,8 +181,8 @@ class CodeGenVisitor(visit.DFSVisitor):
                     phi_code = "%{} = phi {} [%{}, %{}], [%{}, %{}]".format(
                         self.reg_num,
                         ste.node.type,
+                        start_ir_name, start_basic_block.name,
                         if_ir_name, if_body.name,
-                        start_ir_name, start_basic_block.name
                     )
                 
                 self.add_line(phi_code)
@@ -231,6 +231,15 @@ class CodeGenVisitor(visit.DFSVisitor):
         self.reg_num += 1
         self.add_line("%{} = load i32, i32* %{}, align 4".format(self.reg_num, self.reg_num - 1))
         self.exp_stack.append(Var(self.reg_num, "i32"))
+        self.reg_num += 1
+
+    def _out_bool_literal(self, node):
+        bool_value = 1 if node.symbol.value else 0
+        self.add_line("%{} = alloca i1, align 4".format(self.reg_num))
+        self.add_line("store i1 {}, i1* %{}".format(bool_value, self.reg_num))
+        self.reg_num += 1
+        self.add_line("%{} = load i1, i1* %{}, align 4".format(self.reg_num, self.reg_num - 1))
+        self.exp_stack.append(Var(self.reg_num, "i1"))
         self.reg_num += 1
 
     def _out_equality_exp(self, node):
