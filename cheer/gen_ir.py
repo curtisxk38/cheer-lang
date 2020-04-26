@@ -164,6 +164,7 @@ class CodeGenVisitor(visit.DFSVisitor):
             # left scope, lets deal with the phi
             phi = self.phi_stack.pop()
             for lexeme, ste in phi.map.items():
+                # if-else
                 if len(node.children) == 3:
                     _, else_ir_name = ste.ir_names.pop()
                     _, if_ir_name = ste.ir_names.pop()
@@ -174,6 +175,7 @@ class CodeGenVisitor(visit.DFSVisitor):
                         if_ir_name, if_body.name,
                         else_ir_name, else_body.name
                     )
+                # if with no else
                 else:
                     _, if_ir_name = ste.ir_names.pop()
                     _, start_ir_name= ste.ir_names[-1]
