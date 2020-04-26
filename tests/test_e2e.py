@@ -34,7 +34,13 @@ tests = [
         }
         ''', returns=19
     ),
-
+    ProgramConfig(
+        '''
+        fn main() {
+            return 1 + input();
+        }
+        ''', returns=52, input=b'3\n' # 3 is ascii 51
+    ),
     ProgramConfig(
         '''
         fn main() {
@@ -52,6 +58,7 @@ def test_e2e_program(test_config):
     lines = test_config.prog.split('\n')
     code = compile.compile(FakeOptions(), lines)
     compile_backend(code)
-    proc = subprocess.Popen('./a.out')
-    out, errs = proc.communicate()
+    proc = subprocess.Popen('./a.out',
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, errs = proc.communicate(input=test_config.input)
     assert proc.returncode == test_config.returns
