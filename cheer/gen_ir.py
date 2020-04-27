@@ -157,9 +157,7 @@ class CodeGenVisitor(visit.DFSVisitor):
             # gen last line of else body bb, to jump to next bb
             self.add_line(f"br label %{if_else_end.name}")
 
-        # is this if-else statment the last in a statement list?
-        # if the if else statement was the last, then adding
-        #  another basic block is an error, since it would be empty
+        # if the if body and else body
         # ex:
         # fn main() {
         #   if (true) { return true; }
@@ -173,7 +171,7 @@ class CodeGenVisitor(visit.DFSVisitor):
             # left scope, lets deal with the phi
             phi = self.phi_stack.pop()
             for lexeme, ste in phi.map.items():
-                # if-else
+                # if statement with else
                 if len(node.children) == 3:
                     recent_scope, recent_ir_name = ste.ir_names.pop()
                     # the else body assigned to lexeme
@@ -233,6 +231,8 @@ class CodeGenVisitor(visit.DFSVisitor):
                             start_ir_name, start_basic_block.name,
                             if_ir_name, if_body.name,
                         )
+
+                # phi_code will be undefined if we don't need to gen any code for it
                 # we don't always need to generate phi code
                 # ex, an if statement mutates a variable but returns
                 # `let x = 1; if(true) { x = 2; return x } return x;`

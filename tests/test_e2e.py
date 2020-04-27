@@ -141,6 +141,35 @@ tests = [
     }
     ''', returns=1,
     ),
+    ProgramConfig(
+    '''
+    fn main() {
+        let y = 0;
+        if (true) {
+            y = 2;
+            return y;
+        } else {
+            y = 3;
+        }
+        return y;
+    }
+    ''', returns=2,
+    ),
+    ProgramConfig(
+    '''
+    fn main() {
+        let y = 0;
+        if (false) {
+            y = 2;
+        }
+        else {
+            y = y + 1;
+        }
+        y = y + 4;
+        return y;
+    }
+    ''', returns=5,
+    ),
 
 ]
 
