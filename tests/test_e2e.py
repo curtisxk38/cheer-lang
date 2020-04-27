@@ -21,9 +21,14 @@ class ProgramConfig:
 def compile_backend(code):
     with open('example.ll', 'w') as f:
         f.write(code)
-    subprocess.run(shlex.split('llc example.ll -march=x86-64 -o example.s'), check=True)
-    subprocess.run(shlex.split('gcc -c example.s -o example.o'), check=True)
-    subprocess.run(shlex.split('gcc example.o -o a.out'), check=True)
+    try:
+        subprocess.run(shlex.split('llc example.ll -march=x86-64 -o example.s'), check=True)
+        subprocess.run(shlex.split('gcc -c example.s -o example.o'), check=True)
+        subprocess.run(shlex.split('gcc example.o -o a.out'), check=True)
+    except subprocess.CalledProcessError:
+        # failed to compile
+        return False
+    return True
 
 
 tests = [
@@ -100,7 +105,7 @@ tests = [
         y = y + 4;
         return y;
     }
-    ''', returns=6,
+    ''', returns=1,
     ),
     ProgramConfig(
     '''
@@ -124,6 +129,18 @@ tests = [
     }
     ''', returns=1,
     ),
+    ProgramConfig(
+    '''
+    fn main() {
+        let y = 4;
+        if (true) {
+            y = 1;
+            return y;
+        }
+        return y;
+    }
+    ''', returns=1,
+    ),
 
 ]
 
@@ -132,8 +149,8 @@ tests = [
 def test_e2e_program(test_config):
     lines = test_config.prog.split('\n')
     code = compile.compile(FakeOptions(), lines)
-    compile_backend(code)
+    assert compile_backend(code), test_config.prog
     proc = subprocess.Popen('./a.out',
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, errs = proc.communicate(input=test_config.input)
-    assert proc.returncode == test_config.returns
+    assert proc.returncode == test_config.returns, test_config.prog
