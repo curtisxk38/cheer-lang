@@ -21,9 +21,9 @@ class ProgramConfig:
 def compile_backend(code):
     with open('example.ll', 'w') as f:
         f.write(code)
-    subprocess.run(shlex.split('llc example.ll -march=x86-64 -o example.s'))
-    subprocess.run(shlex.split('gcc -c example.s -o example.o'))
-    subprocess.run(shlex.split('gcc example.o -o a.out'))
+    subprocess.run(shlex.split('llc example.ll -march=x86-64 -o example.s'), check=True)
+    subprocess.run(shlex.split('gcc -c example.s -o example.o'), check=True)
+    subprocess.run(shlex.split('gcc example.o -o a.out'), check=True)
 
 
 tests = [
@@ -49,7 +49,82 @@ tests = [
             }
             return 1;
         }''', returns=1
-    )
+    ),
+    ProgramConfig(
+        '''
+        fn main() {
+            if (5 == 3) {
+                return 5 + 4;
+            } else {
+                return 3 - 2;
+            }
+        }''', returns=1
+    ),
+    ProgramConfig(
+    '''
+    fn main() {
+        let x = 4;
+        let y = x + 1;
+        y = y + y;
+        if (y - 4 == 0) {
+            return 5 + 4;
+        } else {
+            return 3 - 2;
+        }
+    }
+    ''', returns=1
+    ),
+    ProgramConfig(
+    '''
+    fn main() {
+        let y = 0;
+        if (true) {
+            y = 2;
+        } else {
+            let x = 0;
+        }
+        y = y + 4;
+        return y;
+    }
+    ''', returns=6,
+    ),
+    ProgramConfig(
+    '''
+    fn main() {
+        let y = 0;
+        if (false) {
+            y = 2;
+        } else {
+            return 1;
+        }
+        y = y + 4;
+        return y;
+    }
+    ''', returns=6,
+    ),
+    ProgramConfig(
+    '''
+    fn main() {
+        let y = 4;
+        if (false) {
+            y = 1;
+        }
+        return y;
+    }
+    ''', returns=4,
+    ),
+    ProgramConfig(
+    '''
+    fn main() {
+        let y = 4;
+        if (true) {
+            y = 1;
+        }
+        return y;
+    }
+    ''', returns=1,
+    ),
+
 ]
 
 
