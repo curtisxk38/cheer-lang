@@ -192,12 +192,22 @@ class CodeGenVisitor(visit.DFSVisitor):
             for lexeme, ste in phi.map.items():
                 recent_bb, recent_ir_name = ste.ir_names.pop()
                 if ste.ir_names[-1][0] == if_body:
-                    next_bb, next_ir_name = ste.ir_names.pop()
+                    _, next_ir_name = ste.ir_names.pop()
                 else:
-                    next_bb, next_ir_name = ste.ir_names[-1]
+                    _, next_ir_name = ste.ir_names[-1]
                 
                 # need to gen phi code
                 if len(if_else_end.predecessors) > 1:
+                    # some weird shit to figure out which basic block
+                    #  should be in the phi statement
+                    # (based on the previously set predecessors)
+                    predecessors = if_else_end.predecessors.copy()
+                    predecessors.remove(recent_bb)
+                    predecessors = list(predecessors)
+                    if len(predecessors) > 1:
+                        raise ValueError(f"predecessors should be 2")
+                    next_bb = predecessors[0]
+
                     phi_code = "%{} = phi {} [%{}, %{}], [%{}, %{}]".format(
                             self.reg_num,
                             ste.node.type,
