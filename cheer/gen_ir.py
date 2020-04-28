@@ -160,6 +160,8 @@ class CodeGenVisitor(visit.DFSVisitor):
             # gen last line of if_body basic block, to jump to next basic block
             self.add_line(f"br label %{if_else_end.name}")
             if_else_end.predecessors.add(if_body)
+        else:
+            if_else_end.predecessors.add(start_basic_block)
 
         # gen code for else
         if len(node.children) == 3:
@@ -172,6 +174,8 @@ class CodeGenVisitor(visit.DFSVisitor):
                 # gen last line of else body bb, to jump to next bb
                 self.add_line(f"br label %{if_else_end.name}")
                 if_else_end.predecessors.add(else_body)
+            else:
+                if_else_end.predecessors.add(start_basic_block)
 
         # if the if body and else body
         # ex:
@@ -251,7 +255,22 @@ class CodeGenVisitor(visit.DFSVisitor):
 
     def _out_var(self, node):
         ste = self.symbol_table.get(node, self.scope_stack)
-        self.exp_stack.append(Var(ste.ir_names[-1][1], node.type))
+        if self.main.basic_blocks[-1] == ste.ir_names[-1][0]:
+            ir_name_to_use = ste.ir_names[-1][1]
+        else:
+            for basic_block, ir_name in ste.ir_names:
+                if basic_block in self.main.basic_blocks[-1].predecessors:
+                    ir_name_to_use = ir_name
+                    break
+        try:
+            self.exp_stack.append(Var(ir_name_to_use, node.type))
+        except UnboundLocalError as e:
+            print(node.symbol)
+            print(ste.ir_names)
+            print(self.main.basic_blocks)
+            print(self.main.basic_blocks[-1].predecessors)
+
+            raise e
 
     ###### EXPRESSIONS #######
 
