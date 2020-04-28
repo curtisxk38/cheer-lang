@@ -1,7 +1,7 @@
 import collections
 from typing import Dict, List, Set, Tuple
 
-from cheer import ast
+from cheer import ast, gen_ir
 
 
 class SymbolTableError(Exception):
@@ -47,7 +47,7 @@ class STE:
         # for IR gen, list of names
         # its a stack for the scopes this lexeme is used in
         # tuple of (Scope, register_name)
-        self.ir_names: List[Tuple[Scope, str]] = []
+        self.ir_names: List[Tuple['gen_ir.BasicBlock', str]] = []
 
     def __repr__(self):
         return str(f"<{self.node}, Scopes: {self.assigned_scopes}>")
@@ -63,17 +63,16 @@ class STE:
         return False
 
     # used in IR gen, not type checking
-    def assign_to_lexeme(self, scope, ir_name):
-        # scope should be in assigned scopes
+    def assign_to_lexeme(self, basic_block: 'gen_ir.BasicBlock', ir_name: str):
         # if there is an entry in ir_names
-        # and the most recent entry has the same scope as the parameter
-        if len(self.ir_names) > 0 and self.ir_names[-1][0] == scope:
+        # and the most recent entry has the same bb as the parameter
+        if len(self.ir_names) > 0 and self.ir_names[-1][0] == basic_block:
             # overwrite it with the new ir_name
             self.ir_names.pop()
-            self.ir_names.append((scope, ir_name))
+            self.ir_names.append((basic_block, ir_name))
         else:
             # create new entry in ir_names
-            self.ir_names.append((scope, ir_name))
+            self.ir_names.append((basic_block, ir_name))
 
 
 class SymTable:

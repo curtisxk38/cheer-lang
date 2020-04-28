@@ -41,6 +41,7 @@ class BasicBlock:
         self.lines.append(f"{name}:")
         self.terminated = False
         self.returns = False
+        self.predecessors = set()
 
     def to_code(self):
         return self.lines
@@ -55,6 +56,15 @@ class BasicBlock:
                 self.terminated = True
         else:
             print(f"ignoring line: {line}, basic block already terminated")
+
+    def __repr__(self):
+        return f"BB<{self.name}>"
+
+    def __hash__(self):
+        return hash(self.name)
+
+    def __eq__(self, other):
+        return self.name == other.name
 
 
 class Var:
@@ -116,12 +126,15 @@ class CodeGenVisitor(visit.DFSVisitor):
     def _visit_if_statement(self, node):
         # set up basic blocks
         if_body = BasicBlock(f"if_taken{self.bb_num}")    
-        self.bb_num += 1
         if_else_end = BasicBlock(f"if_else_end{self.bb_num}")
-        self.bb_num += 1
 
         # set up Phi statement for assignments in condition body(ies)
         self.phi_stack.append(Phi())
+
+        # keep track
+        start_basic_block = self.main.basic_blocks[-1]
+
+        if_body.predecessors.add(start_basic_block)
         
         # first gen code for the condition
         self.visit_node(node.children[0])
@@ -129,21 +142,24 @@ class CodeGenVisitor(visit.DFSVisitor):
         condition = self.exp_stack.pop()
         if len(node.children) == 3:
             else_body = BasicBlock(f"else_taken{self.bb_num}")
-            block_after_if_body = else_body
+            else_body.predecessors.add(start_basic_block)
+            self.add_line(f"br i1 %{condition.name}, label %{if_body.name}, label %{else_body.name}")
         else:
-            block_after_if_body = if_else_end
-        self.add_line(f"br i1 %{condition.name}, label %{if_body.name}, label %{block_after_if_body.name}")
+            if_else_end.predecessors.add(start_basic_block)
+            self.add_line(f"br i1 %{condition.name}, label %{if_body.name}, label %{if_else_end.name}")
 
-        # keep track
-        start_basic_block = self.main.basic_blocks[-1]
+        # needed so future if statement BBs to have unique names
+        self.bb_num += 1
 
         # gen code for if taken body
         self.main.basic_blocks.append(if_body)
         self.visit_node(node.children[1])
-        # save scope for if body
-        if_body_scope = self.recent_scope
-        # gen last line of if_body basic block, to jump to next basic block
-        self.add_line(f"br label %{if_else_end.name}")
+        # if the if body contains a return statement
+        #  then we don't need to end the basic block with a br
+        if not if_body.returns:
+            # gen last line of if_body basic block, to jump to next basic block
+            self.add_line(f"br label %{if_else_end.name}")
+            if_else_end.predecessors.add(if_body)
 
         # gen code for else
         if len(node.children) == 3:
@@ -152,10 +168,10 @@ class CodeGenVisitor(visit.DFSVisitor):
             # gen code for else taken body
             self.main.basic_blocks.append(else_body)
             self.visit_node(node.children[2])
-            # save scope for else body
-            else_body_scope = self.recent_scope
-            # gen last line of else body bb, to jump to next bb
-            self.add_line(f"br label %{if_else_end.name}")
+            if not else_body.returns:
+                # gen last line of else body bb, to jump to next bb
+                self.add_line(f"br label %{if_else_end.name}")
+                if_else_end.predecessors.add(else_body)
 
         # if the if body and else body
         # ex:
@@ -164,84 +180,34 @@ class CodeGenVisitor(visit.DFSVisitor):
         #   else { return false; }
         # }
         # we don't want another basic block after the else one
-        last_statement = node.parent.ntype == "statement_list" and \
-            node.parent.children[-1] is node
-        if not last_statement:
+
+        # is there any code needed after the if-else statement?
+        nothing_after_if_else = len(node.children) == 3 \
+            and if_body.returns and else_body.returns
+
+        if not nothing_after_if_else:
             self.main.basic_blocks.append(if_else_end)
-            # left scope, lets deal with the phi
+            # lets deal with the phi
             phi = self.phi_stack.pop()
             for lexeme, ste in phi.map.items():
-                # if statement with else
-                if len(node.children) == 3:
-                    recent_scope, recent_ir_name = ste.ir_names.pop()
-                    # the else body assigned to lexeme
-                    if recent_scope == else_body_scope:
-                        second_ir_name = recent_ir_name
-                        second_branch_name = else_body.name
-                        # if body assigned to lexeme
-                        if ste.ir_names[-1][0] == if_body_scope:
-                            _, first_ir_name = ste.ir_names.pop()
-                            first_branch_name = if_body.name
-                        else:
-                            # get branch / ir name info from code
-                            # before if-else statement
-                            _, first_ir_name = ste.ir_names[-1]
-                            first_branch_name = if_body.name
-                        phi_code = "%{} = phi {} [%{}, %{}], [%{}, %{}]".format(
-                            self.reg_num,
-                            ste.node.type,
-                            first_ir_name, first_branch_name,
-                            second_ir_name, second_branch_name
-                        )
-                    else:
-                        # if the else body didn't assign to the lexeme,
-                        # then the if body MUST have, or else this item
-                        # wouldn't exist in the phi.map
-                        first_ir_name = recent_ir_name
-                        first_branch_name = if_body.name
-                        # is the else block NOT a predecessor of the if-else-end?
-                        if else_body.returns:
-                            phi_code = "%{} = phi {} [%{}, %{}]".format(
-                                self.reg_num,
-                                ste.node.type,
-                                first_ir_name, first_branch_name,
-                            )
-                        else:
-                            # get ir name info from code
-                            # before if-else statement
-                            _, second_ir_name = ste.ir_names[-1]
-                            second_branch_name = else_body.name
-
-                            phi_code = "%{} = phi {} [%{}, %{}], [%{}, %{}]".format(
-                                self.reg_num,
-                                ste.node.type,
-                                first_ir_name, first_branch_name,
-                                second_ir_name, second_branch_name
-                            )
-                # if with no else
+                recent_bb, recent_ir_name = ste.ir_names.pop()
+                if ste.ir_names[-1][0] == if_body:
+                    next_bb, next_ir_name = ste.ir_names.pop()
                 else:
-                    _, if_ir_name = ste.ir_names.pop()
-                    _, start_ir_name= ste.ir_names[-1]
-
-                    # is the if body a predecessor of the if-else-end block?
-                    if not if_body.returns: 
-                        phi_code = "%{} = phi {} [%{}, %{}], [%{}, %{}]".format(
+                    next_bb, next_ir_name = ste.ir_names[-1]
+                
+                # need to gen phi code
+                if len(if_else_end.predecessors) > 1:
+                    phi_code = "%{} = phi {} [%{}, %{}], [%{}, %{}]".format(
                             self.reg_num,
                             ste.node.type,
-                            start_ir_name, start_basic_block.name,
-                            if_ir_name, if_body.name,
+                            recent_ir_name, recent_bb.name,
+                            next_ir_name, next_bb.name
                         )
 
-                # phi_code will be undefined if we don't need to gen any code for it
-                # we don't always need to generate phi code
-                # ex, an if statement mutates a variable but returns
-                # `let x = 1; if(true) { x = 2; return x } return x;`
-                try:
                     self.add_line(phi_code)
-                    ste.assign_to_lexeme(self.scope_stack[-1], self.reg_num)
+                    ste.assign_to_lexeme(self.main.basic_blocks[-1], self.reg_num)
                     self.reg_num += 1
-                except UnboundLocalError:
-                    pass
 
     def _out_return(self, node):
         op1 = self.exp_stack.pop()
@@ -249,7 +215,7 @@ class CodeGenVisitor(visit.DFSVisitor):
 
     def _out_var_decl_assign(self, node):
         ste = self.symbol_table.get(node, self.scope_stack)
-        ste.assign_to_lexeme(self.scope_stack[-1], self.exp_stack[-1].name)
+        ste.assign_to_lexeme(self.main.basic_blocks[-1], self.exp_stack[-1].name)
 
     def _visit_assignment(self, node):
         # visit rhs (expression)
@@ -265,10 +231,10 @@ class CodeGenVisitor(visit.DFSVisitor):
             # since we are in a conditional scope (if/else) and assigning
             phi = self.phi_stack[-1]
             phi.map[ste.node.symbol.lexeme] = ste
-            ste.assign_to_lexeme(self.scope_stack[-1], op1.name)
+            ste.assign_to_lexeme(self.main.basic_blocks[-1], op1.name)
         # assign to var declared in same scope
         elif ste.declared_scope == self.scope_stack[-1]:
-            ste.assign_to_lexeme(self.scope_stack[-1], op1.name)
+            ste.assign_to_lexeme(self.main.basic_blocks[-1], op1.name)
         # ???
         else:
             raise ValueError("shouldn't be assigning to var declared in younger scope")
