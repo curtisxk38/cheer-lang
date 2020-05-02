@@ -59,6 +59,7 @@ class Parser:
         S -> If
         S -> Let
         S -> Ass
+        S -> W
         """
         peek = self.peek()
 
@@ -72,6 +73,9 @@ class Parser:
         
         elif peek.token == "id":
             return self.assign_statement()
+
+        elif peek.token == "while":
+            return self.while_statement()
             
 
     def return_statement(self):
@@ -146,10 +150,25 @@ class Parser:
         self.match("semicolon")
         return ast.ASTNode("assignment", e, [lhs, ex])
 
+    def while_statement(self):
+        """
+        W -> while ( E ) { L }
+        """
+        w = self.match("while")
+        self.match("left paren")
+        e = self.expr()
+        self.match("right paren")
+        self.match("left brace")
+        l = self.statement_list()
+        self.match("right brace")
+        return ast.ASTNode("while_statement", w, [e, l])
+
     def expr(self):
         """
         E -> T
         E -> T == T
+        E -> T < T
+        E -> T > T
         """
         t = self.term()
         peek = self.peek()
@@ -157,6 +176,15 @@ class Parser:
             e = self.match("equality")
             t2 = self.term()
             return ast.ASTNode("equality_exp", e, [t, t2])
+        if peek.token == "left angle bracket":
+            e = self.match("left angle bracket")
+            t2 = self.term()
+            return ast.ASTNode("less_than_exp", e, [t, t2])
+        if peek.token == "right angle bracket":
+            e = self.match("right angle bracket")
+            t2 = self.term()
+            return ast.ASTNode("greater_than_exp", e, [t, t2])
+
         return t
         
 
