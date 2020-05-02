@@ -25,8 +25,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e .[test]
     - name: Test with pytest
+      # end to end tests require llc to be installed
+      #  maybe its possible to get this installed on the ubuntu host ??
       run: |
-        pytest --cov=cheer
+        pytest --cov=cheer --ignore=tests/test_e2e.py
     - name: Test with mypy
       run: |
         mypy cheer
