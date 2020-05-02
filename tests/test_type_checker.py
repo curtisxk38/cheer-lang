@@ -40,6 +40,40 @@ def test_less_than_exp_invalid():
     with pytest.raises(type_checker.TypeCheckingError):
         tc.type_check()
 
+def if_statement_valid():
+    prog = ["if (1 < 2) { return true; }"]
+    par = tc_test_helper(prog)
+    root = par.statement()
+    tc = type_checker.TCVisitor(root)
+    tc.scope_stack.append(symbol_table.Scope(0))
+    assert tc.type_check() is True
+
+def if_statement_invalid():
+    prog = ["if (1 + 2) { return true; }"]
+    par = tc_test_helper(prog)
+    root = par.statement()
+    tc = type_checker.TCVisitor(root)
+    tc.scope_stack.append(symbol_table.Scope(0))
+    with pytest.raises(type_checker.TypeCheckingError):
+        tc.type_check()
+
+def while_statement_valid():
+    prog = ["while (1 < 2) { return true; }"]
+    par = tc_test_helper(prog)
+    root = par.statement()
+    tc = type_checker.TCVisitor(root)
+    tc.scope_stack.append(symbol_table.Scope(0))
+    assert tc.type_check() is True
+
+def while_statement_invalid():
+    prog = ["while (1 + 2) { return true; }"]
+    par = tc_test_helper(prog)
+    root = par.statement()
+    tc = type_checker.TCVisitor(root)
+    tc.scope_stack.append(symbol_table.Scope(0))
+    with pytest.raises(type_checker.TypeCheckingError):
+        tc.type_check()
+
 def test_use_before_assign():
     prog = """
         fn main() {

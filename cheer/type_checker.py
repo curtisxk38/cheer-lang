@@ -68,6 +68,16 @@ class TCVisitor(visit.DFSVisitor):
         ste = self.symbol_table.create(node, self.scope_stack)
         ste.assign_in_scope(self.scope_stack[-1])
 
+    def _out_if_statement(self, node):
+        condition = node.children[0]
+        if condition.type != "bool":
+            self.error(f"Expected if condition to be of type boolean not {condition.type}")
+
+    def _out_while_statement(self, node):
+        condition = node.children[0]
+        if condition.type != "bool":
+            self.error(f"Expected while condition to be of type boolean not {condition.type}")
+
     def _visit_assignment(self, node):
         """
         Because of the weird way we parse assignment statements
