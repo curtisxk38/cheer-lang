@@ -119,3 +119,11 @@ class TCVisitor(visit.DFSVisitor):
     def _out_equality_exp(self, node):
         _ = self.op_helper(node, None)
         node.type = "bool"
+
+    def _out_less_than_exp(self, node):
+        t = self.op_helper(node, ["i32"])
+        node.type = "bool"
+
+    def _out_greater_than_exp(self, node):
+        t = self.op_helper(node, ["i32"])
+        node.type = "bool"
