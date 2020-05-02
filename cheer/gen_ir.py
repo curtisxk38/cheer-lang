@@ -352,6 +352,20 @@ class CodeGenVisitor(visit.DFSVisitor):
         self.exp_stack.append(Var(self.reg_num, "i1"))
         self.reg_num += 1
 
+    def _out_less_than_exp(self, node):
+        op2 = self.exp_stack.pop()
+        op1 = self.exp_stack.pop()
+        self.add_line(f"%{self.reg_num} = icmp slt i32 %{op1.name}, %{op2.name}")
+        self.exp_stack.append(Var(self.reg_num, "i1"))
+        self.reg_num += 1
+
+    def _out_greater_than_exp(self, node):
+        op2 = self.exp_stack.pop()
+        op1 = self.exp_stack.pop()
+        self.add_line(f"%{self.reg_num} = icmp sgt i32 %{op1.name}, %{op2.name}")
+        self.exp_stack.append(Var(self.reg_num, "i1"))
+        self.reg_num += 1
+
     def _out_plus_exp(self, node):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
