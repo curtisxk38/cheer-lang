@@ -160,8 +160,6 @@ class CodeGenVisitor(visit.DFSVisitor):
             # gen last line of if_body basic block, to jump to next basic block
             self.add_line(f"br label %{if_else_end.name}")
             if_else_end.predecessors.add(if_body)
-        else:
-            if_else_end.predecessors.add(start_basic_block)
 
         # gen code for else
         if len(node.children) == 3:
@@ -174,8 +172,6 @@ class CodeGenVisitor(visit.DFSVisitor):
                 # gen last line of else body bb, to jump to next bb
                 self.add_line(f"br label %{if_else_end.name}")
                 if_else_end.predecessors.add(else_body)
-            else:
-                if_else_end.predecessors.add(start_basic_block)
 
         # if the if body and else body
         # ex:
@@ -222,6 +218,12 @@ class CodeGenVisitor(visit.DFSVisitor):
                     self.add_line(phi_code)
                     ste.assign_to_lexeme(self.main.basic_blocks[-1], self.reg_num)
                     self.reg_num += 1
+                elif len(if_else_end.predecessors) == 1:
+                    # need to update the ir name for this variable to
+                    #  always be the ir var assigned to in the 1 predecessor
+                    predecessor = list(if_else_end.predecessors)[0]
+                    actual_ir_name = recent_ir_name if recent_bb == predecessor else next_ir_name
+                    ste.assign_to_lexeme(predecessor, actual_ir_name)
 
     def _out_return(self, node):
         op1 = self.exp_stack.pop()
