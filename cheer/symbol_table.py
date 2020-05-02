@@ -1,7 +1,7 @@
 import collections
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Tuple
 
-from cheer import ast
+from cheer import ast, gen_ir
 
 
 class SymbolTableError(Exception):
@@ -27,19 +27,27 @@ class Scope:
         return self.scope_num == other.scope_num
 
     def __repr__(self):
-        return str(self.scope_num)
+        return str(f"Scope<{self.scope_num}>")
+
+    def __gt__(self, other):
+        return self.scope_num > other.scope_num
+
+    def __lt__(self, other):
+        return self.scope_num < other.scope_num
 
 
 class STE:
-    def __init__(self, node: ast.ASTNode):
+    def __init__(self, node: ast.ASTNode, declared: Scope):
         self.node = node
         # set of scopes this ste was assigned in
         self.assigned_scopes: Set[Scope] = set()
-        self.scope = 0
+        # scope this var is declared in
+        self.declared_scope: Scope = declared
 
-        # for IR gen
-        self.reg_num = 0
-        self.ir_name = ""
+        # for IR gen, list of names
+        # its a stack for the scopes this lexeme is used in
+        # tuple of (Scope, register_name)
+        self.ir_names: List[Tuple['gen_ir.BasicBlock', str]] = []
 
     def __repr__(self):
         return str(f"<{self.node}, Scopes: {self.assigned_scopes}>")
@@ -54,23 +62,32 @@ class STE:
                 return True
         return False
 
+    # used in IR gen, not type checking
+    def assign_to_lexeme(self, basic_block: 'gen_ir.BasicBlock', ir_name: str):
+        # if there is an entry in ir_names
+        # and the most recent entry has the same bb as the parameter
+        if len(self.ir_names) > 0 and self.ir_names[-1][0] == basic_block:
+            # overwrite it with the new ir_name
+            self.ir_names.pop()
+            self.ir_names.append((basic_block, ir_name))
+        else:
+            # create new entry in ir_names
+            self.ir_names.append((basic_block, ir_name))
 
 
 class SymTable:
     def __init__(self):
-        self.scope = 1
         self.st: Dict[Scope, Dict[str, STE]] = collections.defaultdict(dict)
 
-    def create(self, node: ast.ASTNode, scope_stack: List[Scope], assigned_scope=None):
+    def create(self, node: ast.ASTNode, scope_stack: List[Scope]):
         if node.ntype != "var_decl" and node.ntype != "var_decl_assign":
             raise ValueError(f"expected var type, not {node.ntype}")
         if node.symbol.lexeme in self.st:
             raise AlreadyCreatedError(f"lexeme {node.symbol} already exists in this scope")
 
-        ste = STE(node)
+        ste = STE(node, scope_stack[-1])
         self.st[scope_stack[-1]][node.symbol.lexeme] = ste
-        if assigned_scope is not None:
-            ste.assign_in_scope(assigned_scope)
+        return ste
 
     def get(self, node: ast.ASTNode, scope_stack: List[Scope]):
         # walk scope stack, from youngest child scope to oldest parent scope

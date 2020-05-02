@@ -8,15 +8,13 @@ from cheer import gen_ir
 from cheer import ast
 from cheer import type_checker
 
-
-def main(parsed):
-    with open(parsed.input) as f:
-        symbols = scanner.scan(f, RULES)
+def compile(options, lines):
+    symbols = scanner.scan(lines, RULES)
 
     p = parser.Parser(symbols)
     ast_root = p.start()
 
-    if parsed.verbose:
+    if options.verbose:
         print(ast.gen_ast_digraph(ast_root))
 
     tc = type_checker.TCVisitor(ast_root)
@@ -24,13 +22,18 @@ def main(parsed):
 
     gen_code = gen_ir.CodeGenVisitor(ast_root, tc.symbol_table)
     gen_code.accept()
+    return gen_code.get_code()
 
-    oname = parsed.output
+def main(options):
+    with open(options.input) as f:
+        code = compile(options, f)
+
+    oname = options.output
     if oname is None:
-        oname = os.path.splitext(parsed.input)[0] + ".ll"
+        oname = os.path.splitext(options.input)[0] + ".ll"
 
     with open(oname, "w") as outfile:
-        outfile.write(gen_code.get_code())
+        outfile.write(code)
 
 
 if __name__ == "__main__":

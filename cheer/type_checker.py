@@ -65,7 +65,8 @@ class TCVisitor(visit.DFSVisitor):
 
     def _out_var_decl_assign(self, node):
         node.type = node.children[0].type
-        self.symbol_table.create(node, self.scope_stack, assigned_scope=self.scope_stack[-1])
+        ste = self.symbol_table.create(node, self.scope_stack)
+        ste.assign_in_scope(self.scope_stack[-1])
 
     def _visit_assignment(self, node):
         """

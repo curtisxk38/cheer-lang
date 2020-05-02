@@ -7,8 +7,8 @@ def test_scanner():
         scanner.SymbolRule("[a-zA-z]+", "id"),
         scanner.SymbolRule("[ \n]", "whitespace", add_symbol=False)
     ]
-    with open("test_input/scan.log", "r") as infile:
-        tokens = scanner.scan(infile, rules)
+    lines = ["def asdf", "popo asdf def defdef"]
+    tokens = scanner.scan(lines, rules)
     expected = [
         scanner.Symbol("function def", "def", None, 1, 1),
         scanner.Symbol("id", "asdf", None, 1, 5),
