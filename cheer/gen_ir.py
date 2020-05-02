@@ -225,6 +225,13 @@ class CodeGenVisitor(visit.DFSVisitor):
                     actual_ir_name = recent_ir_name if recent_bb == predecessor else next_ir_name
                     ste.assign_to_lexeme(predecessor, actual_ir_name)
 
+    def _visit_while_statement(self, node):
+        # jump to bb for conditional
+        # bb for conditional, compare and jump to body or while end
+        # bb for while body, then jump to bb for conditional
+        # bb for while end, create phi
+        pass
+
     def _out_return(self, node):
         op1 = self.exp_stack.pop()
         self.add_line(f"ret {op1.type} %{op1.name}")

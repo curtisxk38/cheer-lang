@@ -170,6 +170,18 @@ tests = [
     }
     ''', returns=5,
     ),
+    ProgramConfig(
+    '''
+    fn main() {
+        let y = 5;
+        let x = 10;
+        while(y < x) {
+            y = y + 1;
+        }
+        return 4;
+    }
+    ''', returns=4,
+    )
 
 ]
 
