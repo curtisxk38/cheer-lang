@@ -230,7 +230,40 @@ class CodeGenVisitor(visit.DFSVisitor):
         # bb for conditional, compare and jump to body or while end
         # bb for while body, then jump to bb for conditional
         # bb for while end, create phi
-        pass
+        while_condition = BasicBlock(f"while_con{self.bb_num}")    
+        while_body = BasicBlock(f"while_body{self.bb_num}")
+        while_end = BasicBlock(f"while_end{self.bb_num}")
+        self.bb_num += 1
+
+        # set up predecessors
+        while_condition.predecessors.add(while_body)
+        while_condition.predecessors.add(self.main.basic_blocks[-1])
+        while_body.predecessors.add(while_condition)
+        while_end.predecessors.add(while_condition)
+
+        # TODO what if while body returns ?
+
+        self.add_line(f"br label %{while_condition.name}")
+        self.main.basic_blocks.append(while_condition)
+
+        # gen code of condition expression
+        self.visit_node(node.children[0])
+        # condition expression var
+        con_exp = self.exp_stack.pop()
+        self.add_line(f"br i1 %{con_exp.name}, label %{while_body.name}, label %{while_end.name}")
+
+        # gen code for while body
+        # set up Phi statement for assignments in while body
+        self.phi_stack.append(Phi())
+        self.main.basic_blocks.append(while_body)
+        self.visit_node(node.children[1])
+        # jump to condition bb
+        self.add_line(f"br label %{while_condition.name}")
+
+        # gen code for while end
+        self.main.basic_blocks.append(while_end)
+        # TODO gen code for phi
+        
 
     def _out_return(self, node):
         op1 = self.exp_stack.pop()
@@ -267,10 +300,22 @@ class CodeGenVisitor(visit.DFSVisitor):
         if self.main.basic_blocks[-1] == ste.ir_names[-1][0]:
             ir_name_to_use = ste.ir_names[-1][1]
         else:
-            for basic_block, ir_name in ste.ir_names:
-                if basic_block in self.main.basic_blocks[-1].predecessors:
-                    ir_name_to_use = ir_name
-                    break
+            ir_name_to_use = None
+            looking_at = self.main.basic_blocks[-1]
+            while True:
+                for basic_block, ir_name in ste.ir_names:
+                    if basic_block in looking_at.predecessors:
+                        ir_name_to_use = ir_name
+                        break # break out of for
+                if ir_name_to_use is not None:
+                    break # break out of while
+                # idk about this code
+                # if looking_at doesn't have an entry in ir_names that matches it
+                # which predecessor we go to next shouldn't matter
+                # ex. looking_at has two predecessors. if either of those assigned to this ste,
+                #  then looking_at would have had a phi statement and would have had an entry in ir_names
+                looking_at = list(looking_at.predecessors)[0]
+
         try:
             self.exp_stack.append(Var(ir_name_to_use, node.type))
         except UnboundLocalError as e:
