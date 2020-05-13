@@ -226,10 +226,6 @@ class CodeGenVisitor(visit.DFSVisitor):
                     ste.assign_to_lexeme(predecessor, actual_ir_name)
 
     def _visit_while_statement(self, node):
-        # jump to bb for conditional
-        # bb for conditional, compare and jump to body or while end
-        # bb for while body, then jump to bb for conditional
-        # bb for while end, create phi
         while_condition = BasicBlock(f"while_con{self.bb_num}")    
         while_body = BasicBlock(f"while_body{self.bb_num}")
         while_end = BasicBlock(f"while_end{self.bb_num}")
@@ -241,16 +237,7 @@ class CodeGenVisitor(visit.DFSVisitor):
         while_body.predecessors.add(while_condition)
         while_end.predecessors.add(while_condition)
 
-        # TODO what if while body returns ?
-
         self.add_line(f"br label %{while_condition.name}")
-        self.main.basic_blocks.append(while_condition)
-
-        # gen code of condition expression
-        self.visit_node(node.children[0])
-        # condition expression var
-        con_exp = self.exp_stack.pop()
-        self.add_line(f"br i1 %{con_exp.name}, label %{while_body.name}, label %{while_end.name}")
 
         # gen code for while body
         # set up Phi statement for assignments in while body
@@ -260,10 +247,35 @@ class CodeGenVisitor(visit.DFSVisitor):
         # jump to condition bb
         self.add_line(f"br label %{while_condition.name}")
 
+        # gen code of while condition
+        self.main.basic_blocks.append(while_condition)
+        phi = self.phi_stack.pop()
+        for lexeme, ste in phi.map.items():
+            print(lexeme)
+            print(ste.ir_names)
+
+            body_bb, body_ir = ste.ir_names.pop()
+            entry_bb, entry_ir = ste.ir_names[-1]
+
+            phi_code = "%{} = phi {} [%{}, %{}], [%{}, %{}]".format(
+                self.reg_num,
+                ste.node.type,
+                entry_ir, entry_bb.name,
+                body_ir, body_bb.name
+            )
+
+            self.add_line(phi_code)
+            ste.assign_to_lexeme(self.main.basic_blocks[-1], self.reg_num)
+            self.reg_num += 1
+
+        self.visit_node(node.children[0])
+        # condition expression var
+        con_exp = self.exp_stack.pop()
+        self.add_line(f"br i1 %{con_exp.name}, label %{while_body.name}, label %{while_end.name}")
+        
         # gen code for while end
         self.main.basic_blocks.append(while_end)
-        # TODO gen code for phi
-        
+
 
     def _out_return(self, node):
         op1 = self.exp_stack.pop()
