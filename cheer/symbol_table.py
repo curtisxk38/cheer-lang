@@ -63,16 +63,16 @@ class STE:
         return False
 
     # used in IR gen, not type checking
-    def assign_to_lexeme(self, basic_block: 'gen_ir.BasicBlock', ir_name: str):
+    def assign_to_lexeme(self, basic_block: 'gen_ir.BasicBlock', ir_name_or_value: str):
         # if there is an entry in ir_names
         # and the most recent entry has the same bb as the parameter
         if len(self.ir_names) > 0 and self.ir_names[-1][0] == basic_block:
-            # overwrite it with the new ir_name
+            # overwrite it with the new ir_name_or_value
             self.ir_names.pop()
-            self.ir_names.append((basic_block, ir_name))
+            self.ir_names.append((basic_block, ir_name_or_value))
         else:
             # create new entry in ir_names
-            self.ir_names.append((basic_block, ir_name))
+            self.ir_names.append((basic_block, ir_name_or_value))
 
 
 class SymTable:

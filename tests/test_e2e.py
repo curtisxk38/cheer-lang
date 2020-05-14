@@ -170,7 +170,10 @@ tests = [
     }
     ''', returns=5,
     ),
-    ProgramConfig(
+]
+
+# to be included ^, later
+ProgramConfig(
     '''
     fn main() {
         let y = 5;
@@ -181,10 +184,7 @@ tests = [
         return 4;
     }
     ''', returns=4,
-    )
-
-]
-
+)
 
 @pytest.mark.parametrize("test_config", tests)
 def test_e2e_program(test_config):

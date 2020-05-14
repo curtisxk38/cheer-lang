@@ -67,10 +67,21 @@ class BasicBlock:
         return self.name == other.name
 
 
-class Var:
-    def __init__(self, name, t):
+class Expr:
+    def __init__(self, name, t, const_value=None):
         self.name = name
         self.type = t
+        self.const_value = const_value
+
+    def get_name_or_value(self, prepend_var=True):
+        if self.name is not None:
+            return "%" + str(self.name)
+        return str(self.const_value)
+
+    def __repr__(self):
+        if self.name is not None:
+            return f"%{self.name}: {self.type}"
+        return f"_: {self.type} = {self.const_value}"
 
 
 class Phi:
@@ -86,7 +97,7 @@ class CodeGenVisitor(visit.DFSVisitor):
         super().__init__(ast)
         self.reg_num = 0
         self.bb_num = 1
-        self.exp_stack: List[Var] = []
+        self.exp_stack: List[Expr] = []
         self.symbol_table = st
 
         self.main = Function("main", "i32")
@@ -97,7 +108,8 @@ class CodeGenVisitor(visit.DFSVisitor):
         self.scope_stack: List[symbol_table.Scope] = []
         self.recent_scope = None # scope that was just left
 
-        self.phi_stack = []
+        self.phi_stack: List[Phi] = []
+        self.vars_used_in_while: List[symbol_table.STE] = None
 
     def default_in_visit(self, node):
         # override
@@ -139,14 +151,14 @@ class CodeGenVisitor(visit.DFSVisitor):
         # first gen code for the condition
         self.visit_node(node.children[0])
         # gen code conditional branch
-        condition = self.exp_stack.pop()
+        condition = self.exp_stack.pop().get_name_or_value()
         if len(node.children) == 3:
             else_body = BasicBlock(f"else_taken{self.bb_num}")
             else_body.predecessors.add(start_basic_block)
-            self.add_line(f"br i1 %{condition.name}, label %{if_body.name}, label %{else_body.name}")
+            self.add_line(f"br i1 {condition}, label %{if_body.name}, label %{else_body.name}")
         else:
             if_else_end.predecessors.add(start_basic_block)
-            self.add_line(f"br i1 %{condition.name}, label %{if_body.name}, label %{if_else_end.name}")
+            self.add_line(f"br i1 {condition}, label %{if_body.name}, label %{if_else_end.name}")
 
         # needed so future if statement BBs to have unique names
         self.bb_num += 1
@@ -190,6 +202,7 @@ class CodeGenVisitor(visit.DFSVisitor):
             # lets deal with the phi
             phi = self.phi_stack.pop()
             for lexeme, ste in phi.map.items():
+                print(ste.ir_names)
                 recent_bb, recent_ir_name = ste.ir_names.pop()
                 if ste.ir_names[-1][0] == if_body:
                     _, next_ir_name = ste.ir_names.pop()
@@ -248,12 +261,10 @@ class CodeGenVisitor(visit.DFSVisitor):
         self.add_line(f"br label %{while_condition.name}")
 
         # gen code of while condition
+        self.vars_used_in_while = []
         self.main.basic_blocks.append(while_condition)
         phi = self.phi_stack.pop()
         for lexeme, ste in phi.map.items():
-            print(lexeme)
-            print(ste.ir_names)
-
             body_bb, body_ir = ste.ir_names.pop()
             entry_bb, entry_ir = ste.ir_names[-1]
 
@@ -270,20 +281,30 @@ class CodeGenVisitor(visit.DFSVisitor):
 
         self.visit_node(node.children[0])
         # condition expression var
-        con_exp = self.exp_stack.pop()
-        self.add_line(f"br i1 %{con_exp.name}, label %{while_body.name}, label %{while_end.name}")
+        con_exp = self.exp_stack.pop().get_name_or_value()
+        self.add_line(f"br i1 {con_exp}, label %{while_body.name}, label %{while_end.name}")
         
+        self.vars_used_in_while = None
+
         # gen code for while end
         self.main.basic_blocks.append(while_end)
 
 
     def _out_return(self, node):
         op1 = self.exp_stack.pop()
-        self.add_line(f"ret {op1.type} %{op1.name}")
+        print(op1)
+        self.add_line(f"ret {op1.type} {op1.get_name_or_value()}")
 
     def _out_var_decl_assign(self, node):
         ste = self.symbol_table.get(node, self.scope_stack)
-        ste.assign_to_lexeme(self.main.basic_blocks[-1], self.exp_stack[-1].name)
+        op1 = self.exp_stack.pop()
+        if op1.name is not None:
+            ste.assign_to_lexeme(self.main.basic_blocks[-1], op1.name)
+        else:
+            # TODO fix this bs lol
+            self.add_line(f"%{self.reg_num} = add {op1.type} 0, {op1.const_value}")
+            ste.assign_to_lexeme(self.main.basic_blocks[-1], self.reg_num)
+            self.reg_num += 1
 
     def _visit_assignment(self, node):
         # visit rhs (expression)
@@ -329,7 +350,7 @@ class CodeGenVisitor(visit.DFSVisitor):
                 looking_at = list(looking_at.predecessors)[0]
 
         try:
-            self.exp_stack.append(Var(ir_name_to_use, node.type))
+            self.exp_stack.append(Expr(ir_name_to_use, node.type))
         except UnboundLocalError as e:
             print(node.symbol)
             print(ste.ir_names)
@@ -338,65 +359,68 @@ class CodeGenVisitor(visit.DFSVisitor):
 
             raise e
 
+        if self.vars_used_in_while is not None:
+            self.vars_used_in_while.append(ste)
+
     ###### EXPRESSIONS #######
 
     def _out_int_literal(self, node):
-        self.add_line("%{} = alloca i32, align 4".format(self.reg_num))
-        self.add_line("store i32 {}, i32* %{}".format(node.symbol.value, self.reg_num))
-        self.reg_num += 1
-        self.add_line("%{} = load i32, i32* %{}, align 4".format(self.reg_num, self.reg_num - 1))
-        self.exp_stack.append(Var(self.reg_num, "i32"))
-        self.reg_num += 1
+        #self.add_line("%{} = alloca i32, align 4".format(self.reg_num))
+        #self.add_line("store i32 {}, i32* %{}".format(node.symbol.value, self.reg_num))
+        #self.reg_num += 1
+        #self.add_line("%{} = load i32, i32* %{}, align 4".format(self.reg_num, self.reg_num - 1))
+        self.exp_stack.append(Expr(None, "i32", node.symbol.value))
+        #self.reg_num += 1
 
     def _out_bool_literal(self, node):
         bool_value = 1 if node.symbol.value else 0
-        self.add_line("%{} = alloca i1, align 4".format(self.reg_num))
-        self.add_line("store i1 {}, i1* %{}".format(bool_value, self.reg_num))
-        self.reg_num += 1
-        self.add_line("%{} = load i1, i1* %{}, align 4".format(self.reg_num, self.reg_num - 1))
-        self.exp_stack.append(Var(self.reg_num, "i1"))
-        self.reg_num += 1
+        #self.add_line("%{} = alloca i1, align 4".format(self.reg_num))
+        #self.add_line("store i1 {}, i1* %{}".format(bool_value, self.reg_num))
+        #self.reg_num += 1
+        #self.add_line("%{} = load i1, i1* %{}, align 4".format(self.reg_num, self.reg_num - 1))
+        self.exp_stack.append(Expr(None, "i1", bool_value))
+        #self.reg_num += 1
 
     def _out_equality_exp(self, node):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
-        self.add_line(f"%{self.reg_num} = icmp eq i32 %{op1.name}, %{op2.name}")
-        self.exp_stack.append(Var(self.reg_num, "i1"))
+        self.add_line(f"%{self.reg_num} = icmp eq i32 {op1.get_name_or_value()}, {op2.get_name_or_value()}")
+        self.exp_stack.append(Expr(self.reg_num, "i1"))
         self.reg_num += 1
 
     def _out_less_than_exp(self, node):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
-        self.add_line(f"%{self.reg_num} = icmp slt i32 %{op1.name}, %{op2.name}")
-        self.exp_stack.append(Var(self.reg_num, "i1"))
+        self.add_line(f"%{self.reg_num} = icmp slt i32 {op1.get_name_or_value()}, {op2.get_name_or_value()}")
+        self.exp_stack.append(Expr(self.reg_num, "i1"))
         self.reg_num += 1
 
     def _out_greater_than_exp(self, node):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
-        self.add_line(f"%{self.reg_num} = icmp sgt i32 %{op1.name}, %{op2.name}")
-        self.exp_stack.append(Var(self.reg_num, "i1"))
+        self.add_line(f"%{self.reg_num} = icmp sgt i32 {op1.get_name_or_value()}, {op2.get_name_or_value()}")
+        self.exp_stack.append(Expr(self.reg_num, "i1"))
         self.reg_num += 1
 
     def _out_plus_exp(self, node):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
-        self.add_line("%{} = add i32 %{}, %{}".format(self.reg_num, op1.name, op2.name))
-        self.exp_stack.append(Var(self.reg_num, "i32"))
+        self.add_line(f"%{self.reg_num} = add i32 {op1.get_name_or_value()}, {op2.get_name_or_value()}")
+        self.exp_stack.append(Expr(self.reg_num, "i32"))
         self.reg_num += 1
 
     def _out_minus_exp(self, node):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
-        self.add_line("%{} = sub i32 %{}, %{}".format(self.reg_num, op1.name, op2.name))
-        self.exp_stack.append(Var(self.reg_num, "i32"))
+        self.add_line(f"%{self.reg_num} = sub i32 {op1.get_name_or_value()}, {op2.get_name_or_value()}")
+        self.exp_stack.append(Expr(self.reg_num, "i32"))
         self.reg_num += 1
 
     def _out_times_exp(self, node):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
-        self.add_line("%{} = mul i32 %{}, %{}".format(self.reg_num, op1.name, op2.name))
-        self.exp_stack.append(Var(self.reg_num, "i32"))
+        self.add_line(f"%{self.reg_num} = mul i32 {op1.get_name_or_value()}, {op2.get_name_or_value()}")
+        self.exp_stack.append(Expr(self.reg_num, "i32"))
         self.reg_num += 1
 
     def _out_input_exp(self, node):
@@ -428,5 +452,5 @@ class CodeGenVisitor(visit.DFSVisitor):
         self.add_line("%{} = load i8, i8* %{}, align 1".format(self.reg_num, self.reg_num - 2))
         self.reg_num += 1
         self.add_line("%{} = sext i8 %{} to i32".format(self.reg_num, self.reg_num - 1))
-        self.exp_stack.append(Var(self.reg_num, "i32"))
+        self.exp_stack.append(Expr(self.reg_num, "i32"))
         self.reg_num += 1

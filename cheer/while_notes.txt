@@ -1,0 +1,77 @@
+given program:
+
+```
+fn main() {
+    let y = 5;
+    let x = 10;
+    while(y < x) {
+        y = y + 1;
+    }
+    return y;
+}
+```
+
+how to generate llvm ir for while condition + body
+
+SSA needs phi nodes
+
+
+entry BB
+ |
+ v
+condition BB <--
+ |    |        |
+ |    v        |
+ |  body bb ----
+ v
+ end BB
+
+
+ should generate llvm ir:
+ ```
+ define i32 @main() {
+ entry:
+   %0 = alloca i32, align 4
+   store i32 5, i32* %0 					;
+   %1 = load i32, i32* %0, align 4		; %1 <- 5 ; let y = 5
+   %2 = alloca i32, align 4				;
+   store i32 10, i32* %2					;
+   %3 = load i32, i32* %2, align 4		; %3 <- 10 ; let x = 10
+   br label %while_con1
+
+ while_body1:
+   %4 = add i32 %5, 1                   	; %4 = %1 + 1 ; y = y + 1
+   br label %while_con1					; jump to while_con1
+
+ while_con1:
+   %5 = phi i32 [%1, %entry], [%4, %while_body1]
+   %6 = icmp slt i32 %5, %3
+   br i1 %6, label %while_body1, label %while_end1
+
+ while_end1:
+   ret i32 %5
+ }
+ ```
+
+
+ 1. generate code for while condition
+ 	- keep track of all variables used in the while condition
+ 2. generate dummy/stub instructions for each variable used
+ 	- each variable used get its own new ssa var defined
+ 	ex while con uses vars x, y, z
+ 	define 3 dummy instructions with lhs: %1, %2, %3 respectively
+ 	- and update the STEs for x,y,z to have %1,%2,%3 as the new IR name
+ 	gen code as usual for the condition
+ 	jump to while body
+ 3. generate while body
+ 	- keep track of all vars assigned using phi technique
+ 4. go back to while condition basic block
+ 	for each of the vars in phi,
+ 		if the var in the phi is one of the vars used in the while con expr
+ 			- replace the dummy isntr with a phi instr
+ 		else:
+ 			generate a phi instr and insert it into the while con expr before the jump to while body
+
+
+Also need constant folding
+	using constants in the while body pushes to stack
