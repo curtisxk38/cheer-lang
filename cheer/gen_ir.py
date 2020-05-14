@@ -320,13 +320,20 @@ class CodeGenVisitor(visit.DFSVisitor):
             # since we are in a conditional scope (if/else) and assigning
             phi = self.phi_stack[-1]
             phi.map[ste.node.symbol.lexeme] = ste
-            ste.assign_to_lexeme(self.main.basic_blocks[-1], op1.name)
         # assign to var declared in same scope
         elif ste.declared_scope == self.scope_stack[-1]:
-            ste.assign_to_lexeme(self.main.basic_blocks[-1], op1.name)
+            pass
         # ???
         else:
             raise ValueError("shouldn't be assigning to var declared in younger scope")
+
+        if op1.name is not None:
+            ste.assign_to_lexeme(self.main.basic_blocks[-1], op1.name)
+        else:
+            # TODO fix this bs lol
+            self.add_line(f"%{self.reg_num} = add {op1.type} 0, {op1.const_value}")
+            ste.assign_to_lexeme(self.main.basic_blocks[-1], self.reg_num)
+            self.reg_num += 1
 
     def _out_var(self, node):
         ste = self.symbol_table.get(node, self.scope_stack)

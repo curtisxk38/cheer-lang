@@ -75,3 +75,9 @@ condition BB <--
 
 Also need constant folding
 	using constants in the while body pushes to stack
+
+no way in llvm to do:
+%1 = <const>
+so atm we're doing %1 = add 0, <const>
+only used where we call assign_to_lexeme which assumes register number 
+  when it needs to work with register numbers and values
