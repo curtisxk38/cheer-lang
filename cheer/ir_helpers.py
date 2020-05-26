@@ -1,6 +1,9 @@
 from cheer import instructions as instr
 
 
+indent = "  "
+
+
 class BasicBlock:
     def __init__(self, name):
         self.name = name
@@ -11,15 +14,15 @@ class BasicBlock:
 
     def to_code(self):
         label = f"{self.name}:"
-        return [label] + [line.to_llvm_ir() for line in self.lines]
+        return [label] + [indent + line.to_llvm_ir() for line in self.lines]
 
     def add_instr(self, line):
         if not self.terminated:
-            self.lines.append(indent + line)
-            if instanceof(line, instr.Return):
+            self.lines.append(line)
+            if isinstance(line, instr.Return):
                 self.terminated = True
                 self.returns = True
-            if instanceof(line, instr.Branch) or instanceof(line, instr.ConditionalBranch):
+            if isinstance(line, instr.Branch) or isinstance(line, instr.ConditionalBranch):
                 self.terminated = True
         else:
             print(f"ignoring line: {line}, basic block already terminated")

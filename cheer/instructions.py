@@ -2,14 +2,14 @@ from cheer import ir_helpers
 
 
 class Branch:
-    def __init__(self, bb: ir_helpers.BasicBlock):
+    def __init__(self, bb: 'ir_helpers.BasicBlock'):
         self.bb = bb
 
     def to_llvm_ir(self):
         return f"br label %{self.bb.name}"
 
 class ConditionalBranch:
-    def __init__(self, expr: ir_helpers.Expr, true_bb: ir_helpers.BasicBlock, false_bb: ir_helpers.BasicBlock):
+    def __init__(self, expr: 'ir_helpers.Expr', true_bb: 'ir_helpers.BasicBlock', false_bb: 'ir_helpers.BasicBlock'):
         self.expr = expr # value or register starting with %
         self.true_bb = true_bb
         self.false_bb = false_bb
@@ -18,7 +18,7 @@ class ConditionalBranch:
         return f"br i1 {self.expr.get_name_or_value()}, label %{self.true_bb.name}, label %{self.false_bb.name}"
 
 class Phi:
-    def __init__(self, lhs, type_, op1: ir_helpers.Expr, bb1: ir_helpers.BasicBlock, op2: ir_helpers.Expr, bb2: ir_helpers.BasicBlock):
+    def __init__(self, lhs, type_, op1: 'ir_helpers.Expr', bb1: 'ir_helpers.BasicBlock', op2: 'ir_helpers.Expr', bb2: 'ir_helpers.BasicBlock'):
         self.lhs = lhs
         self.type = type_
         self.op1 = op1
@@ -31,7 +31,7 @@ class Phi:
             [{self.op2, self.bb2.name.get_name_or_value()}]"
 
 class Return:
-    def __init__(self, type_, op: ir_helpers.Expr):
+    def __init__(self, type_, op: 'ir_helpers.Expr'):
         self.type = type_
         self.op = op
 
@@ -39,7 +39,7 @@ class Return:
         return f"ret {self.type} {self.op.get_name_or_value()}"
 
 class Compare:
-    def __init__(self, lhs, comp_type, type_, op1: ir_helpers.Expr, op2: ir_helpers.Expr):
+    def __init__(self, lhs, comp_type, type_, op1: 'ir_helpers.Expr', op2: 'ir_helpers.Expr'):
         self.lhs = lhs
         self.comp_type = comp_type
         self.type = type_
@@ -51,7 +51,7 @@ class Compare:
             {self.op1.get_name_or_value()}, {self.op2.get_name_or_value()}"
 
 class Add:
-    def __init__(self, lhs, type_, op1: ir_helpers.Expr, op2: ir_helpers.Expr):
+    def __init__(self, lhs, type_, op1: 'ir_helpers.Expr', op2: 'ir_helpers.Expr'):
         self.lhs = lhs
         self.type = type_
         self.op1 = op1
@@ -61,7 +61,7 @@ class Add:
         return f"%{self.lhs} = add {self.type} {self.op1.get_name_or_value()}, {self.op2.get_name_or_value()}"
 
 class Subtract:
-    def __init__(self, lhs, type_, op1: ir_helpers.Expr, op2: ir_helpers.Expr):
+    def __init__(self, lhs, type_, op1: 'ir_helpers.Expr', op2: 'ir_helpers.Expr'):
         self.lhs = lhs
         self.type = type_
         self.op1 = op1
@@ -71,7 +71,7 @@ class Subtract:
         return f"%{self.lhs} = sub {self.type} {self.op1.get_name_or_value()}, {self.op2.get_name_or_value()}"
 
 class Multiply:
-    def __init__(self, lhs, type_, op1: ir_helpers.Expr, op2: ir_helpers.Expr):
+    def __init__(self, lhs, type_, op1: 'ir_helpers.Expr', op2: 'ir_helpers.Expr'):
         self.lhs = lhs
         self.type = type_
         self.op1 = op1

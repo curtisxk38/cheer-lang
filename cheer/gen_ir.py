@@ -4,7 +4,6 @@ from cheer import visit, symbol_table, ir_helpers
 
 from cheer import instructions as instr
 
-indent = "  "
 
 
 class Module:
