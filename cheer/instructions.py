@@ -152,7 +152,7 @@ class GetElementPtr:
         self.index2 = index2
 
     def to_llvm_ir(self):
-        return f"%{self.lhs} = getelementptr inbounds {self.type}, {self.type}* %{self.op1}, i32 {self.index1}, i32, {self.index2}"
+        return f"%{self.lhs} = getelementptr inbounds {self.type}, {self.type}* %{self.op1}, i32 {self.index1}, i32 {self.index2}"
 
 class CallAsm:
     # not generic at the moment
@@ -163,4 +163,4 @@ class CallAsm:
         self.rhs = rhs
 
     def to_llvm_ir(self):
-        return '{} = call i32 asm sideeffect "movl $$0x00000000, %edi\\0Amovl $$0x00000002, %edx\\0Amovl $$0, %eax\\0Asyscall\\0A", "={{ax}},{{si}},~{{dirflag}},~{{fpsr}},~{{flags}}"(i8* {})'.format(self.lhs, self.rhs)
+        return '%{} = call i32 asm sideeffect "movl $$0x00000000, %edi\\0Amovl $$0x00000002, %edx\\0Amovl $$0, %eax\\0Asyscall\\0A", "={{ax}},{{si}},~{{dirflag}},~{{fpsr}},~{{flags}}"(i8* %{})'.format(self.lhs, self.rhs)
