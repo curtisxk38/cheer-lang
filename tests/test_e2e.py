@@ -11,10 +11,10 @@ class FakeOptions:
 
 
 class ProgramConfig:
-    def __init__(self, prog, returns=0, input=None, output=None):
+    def __init__(self, prog, returns=0, input_=None, output=None):
         self.prog = prog
         self.returns = returns
-        self.input = input
+        self.input = input_
         self.output = output
 
 
@@ -44,7 +44,7 @@ tests = [
         fn main() {
             return 1 + input();
         }
-        ''', returns=52, input=b'3\n' # 3 is ascii 51
+        ''', returns=52, input_=b'3\n' # 3 is ascii 51
     ),
     ProgramConfig(
         '''

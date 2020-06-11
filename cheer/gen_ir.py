@@ -1,8 +1,9 @@
 from typing import List
 
-from cheer import visit, symbol_table
+from cheer import visit, symbol_table, ir_helpers
 
-indent = "  "
+from cheer import instructions as instr
+
 
 
 class Module:
@@ -34,56 +35,6 @@ class Function:
         return lines
 
 
-class BasicBlock:
-    def __init__(self, name):
-        self.name = name
-        self.lines = []
-        self.lines.append(f"{name}:")
-        self.terminated = False
-        self.returns = False
-        self.predecessors = set()
-
-    def to_code(self):
-        return self.lines
-
-    def add_instr(self, line):
-        if not self.terminated:
-            self.lines.append(indent + line)
-            if line.startswith("ret"):
-                self.terminated = True
-                self.returns = True
-            if line.startswith("br"):
-                self.terminated = True
-        else:
-            print(f"ignoring line: {line}, basic block already terminated")
-
-    def __repr__(self):
-        return f"BB<{self.name}>"
-
-    def __hash__(self):
-        return hash(self.name)
-
-    def __eq__(self, other):
-        return self.name == other.name
-
-
-class Expr:
-    def __init__(self, name, t, const_value=None):
-        self.name = name
-        self.type = t
-        self.const_value = const_value
-
-    def get_name_or_value(self, prepend_var=True):
-        if self.name is not None:
-            return "%" + str(self.name)
-        return str(self.const_value)
-
-    def __repr__(self):
-        if self.name is not None:
-            return f"%{self.name}: {self.type}"
-        return f"_: {self.type} = {self.const_value}"
-
-
 class Phi:
     def __init__(self):
         self.map: Dict[str, symbol_table.STE] = {}
@@ -97,11 +48,11 @@ class CodeGenVisitor(visit.DFSVisitor):
         super().__init__(ast)
         self.reg_num = 0
         self.bb_num = 1
-        self.exp_stack: List[Expr] = []
+        self.exp_stack: List[ir_helpers.Expr] = []
         self.symbol_table = st
 
         self.main = Function("main", "i32")
-        bb = BasicBlock("entry")
+        bb = ir_helpers.BasicBlock("entry")
         self.main.basic_blocks.append(bb)
 
         self.scope_num = 0
@@ -122,8 +73,8 @@ class CodeGenVisitor(visit.DFSVisitor):
     def get_code(self):
         return "\n".join(self.main.to_code())
 
-    def add_line(self, line):
-        self.main.basic_blocks[-1].add_instr(line)
+    def add_line(self, instruction):
+        self.main.basic_blocks[-1].add_instr(instruction)
 
     ###### STATEMENTS #######
 
@@ -137,8 +88,8 @@ class CodeGenVisitor(visit.DFSVisitor):
 
     def _visit_if_statement(self, node):
         # set up basic blocks
-        if_body = BasicBlock(f"if_taken{self.bb_num}")    
-        if_else_end = BasicBlock(f"if_else_end{self.bb_num}")
+        if_body = ir_helpers.BasicBlock(f"if_taken{self.bb_num}")    
+        if_else_end = ir_helpers.BasicBlock(f"if_else_end{self.bb_num}")
 
         # set up Phi statement for assignments in condition body(ies)
         self.phi_stack.append(Phi())
@@ -151,14 +102,14 @@ class CodeGenVisitor(visit.DFSVisitor):
         # first gen code for the condition
         self.visit_node(node.children[0])
         # gen code conditional branch
-        condition = self.exp_stack.pop().get_name_or_value()
+        condition = self.exp_stack.pop()
         if len(node.children) == 3:
-            else_body = BasicBlock(f"else_taken{self.bb_num}")
+            else_body = ir_helpers.BasicBlock(f"else_taken{self.bb_num}")
             else_body.predecessors.add(start_basic_block)
-            self.add_line(f"br i1 {condition}, label %{if_body.name}, label %{else_body.name}")
+            self.add_line(instr.ConditionalBranch(condition, if_body, else_body))
         else:
             if_else_end.predecessors.add(start_basic_block)
-            self.add_line(f"br i1 {condition}, label %{if_body.name}, label %{if_else_end.name}")
+            self.add_line(instr.ConditionalBranch(condition, if_body, if_else_end))
 
         # needed so future if statement BBs to have unique names
         self.bb_num += 1
@@ -170,7 +121,7 @@ class CodeGenVisitor(visit.DFSVisitor):
         #  then we don't need to end the basic block with a br
         if not if_body.returns:
             # gen last line of if_body basic block, to jump to next basic block
-            self.add_line(f"br label %{if_else_end.name}")
+            self.add_line(instr.Branch(if_else_end))
             if_else_end.predecessors.add(if_body)
 
         # gen code for else
@@ -182,7 +133,7 @@ class CodeGenVisitor(visit.DFSVisitor):
             self.visit_node(node.children[2])
             if not else_body.returns:
                 # gen last line of else body bb, to jump to next bb
-                self.add_line(f"br label %{if_else_end.name}")
+                self.add_line(instr.Branch(if_else_end))
                 if_else_end.predecessors.add(else_body)
 
         # if the if body and else body
@@ -221,14 +172,17 @@ class CodeGenVisitor(visit.DFSVisitor):
                         raise ValueError(f"predecessors should be 2")
                     next_bb = predecessors[0]
 
-                    phi_code = "%{} = phi {} [%{}, %{}], [%{}, %{}]".format(
-                            self.reg_num,
-                            ste.node.type,
-                            recent_ir_name, recent_bb.name,
-                            next_ir_name, next_bb.name
-                        )
+                    # TODO add type?
+                    op1 = ir_helpers.Expr(recent_ir_name, None)
+                    op2 = ir_helpers.Expr(next_ir_name, None)
 
-                    self.add_line(phi_code)
+                    phi_instr = instr.Phi(
+                        self.reg_num, ste.node.type,
+                        op1, recent_bb,
+                        op2, next_bb
+                    )
+
+                    self.add_line(phi_instr)
                     ste.assign_to_lexeme(self.main.basic_blocks[-1], self.reg_num)
                     self.reg_num += 1
                 elif len(if_else_end.predecessors) == 1:
@@ -239,9 +193,9 @@ class CodeGenVisitor(visit.DFSVisitor):
                     ste.assign_to_lexeme(predecessor, actual_ir_name)
 
     def _visit_while_statement(self, node):
-        while_condition = BasicBlock(f"while_con{self.bb_num}")    
-        while_body = BasicBlock(f"while_body{self.bb_num}")
-        while_end = BasicBlock(f"while_end{self.bb_num}")
+        while_condition = ir_helpers.BasicBlock(f"while_con{self.bb_num}")    
+        while_body = ir_helpers.BasicBlock(f"while_body{self.bb_num}")
+        while_end = ir_helpers.BasicBlock(f"while_end{self.bb_num}")
         self.bb_num += 1
 
         # set up predecessors
@@ -250,7 +204,7 @@ class CodeGenVisitor(visit.DFSVisitor):
         while_body.predecessors.add(while_condition)
         while_end.predecessors.add(while_condition)
 
-        self.add_line(f"br label %{while_condition.name}")
+        self.add_line(instr.Branch(while_condition))
 
         # gen code for while body
         # set up Phi statement for assignments in while body
@@ -258,7 +212,7 @@ class CodeGenVisitor(visit.DFSVisitor):
         self.main.basic_blocks.append(while_body)
         self.visit_node(node.children[1])
         # jump to condition bb
-        self.add_line(f"br label %{while_condition.name}")
+        self.add_line(instr.Branch(while_condition))
 
         # gen code of while condition
         self.vars_used_in_while = []
@@ -268,21 +222,19 @@ class CodeGenVisitor(visit.DFSVisitor):
             body_bb, body_ir = ste.ir_names.pop()
             entry_bb, entry_ir = ste.ir_names[-1]
 
-            phi_code = "%{} = phi {} [%{}, %{}], [%{}, %{}]".format(
-                self.reg_num,
-                ste.node.type,
-                entry_ir, entry_bb.name,
-                body_ir, body_bb.name
-            )
+            self.add_line(instr.Phi(
+                        self.reg_num, ste.node.type,
+                        entry_ir, entry_bb,
+                        body_ir, body_bb
+                    ))
 
-            self.add_line(phi_code)
             ste.assign_to_lexeme(self.main.basic_blocks[-1], self.reg_num)
             self.reg_num += 1
 
         self.visit_node(node.children[0])
         # condition expression var
-        con_exp = self.exp_stack.pop().get_name_or_value()
-        self.add_line(f"br i1 {con_exp}, label %{while_body.name}, label %{while_end.name}")
+        con_exp = self.exp_stack.pop()
+        self.add_line(instr.ConditionalBranch(con_exp, while_body, while_end))
         
         self.vars_used_in_while = None
 
@@ -292,8 +244,7 @@ class CodeGenVisitor(visit.DFSVisitor):
 
     def _out_return(self, node):
         op1 = self.exp_stack.pop()
-        print(op1)
-        self.add_line(f"ret {op1.type} {op1.get_name_or_value()}")
+        self.add_line(instr.Return(op1.type, op1))
 
     def _out_var_decl_assign(self, node):
         ste = self.symbol_table.get(node, self.scope_stack)
@@ -302,7 +253,7 @@ class CodeGenVisitor(visit.DFSVisitor):
             ste.assign_to_lexeme(self.main.basic_blocks[-1], op1.name)
         else:
             # TODO fix this bs lol
-            self.add_line(f"%{self.reg_num} = add {op1.type} 0, {op1.const_value}")
+            self.add_line(instr.Add(self.reg_num, op1.type, ir_helpers.Expr(None, "i32", 0), op1))
             ste.assign_to_lexeme(self.main.basic_blocks[-1], self.reg_num)
             self.reg_num += 1
 
@@ -331,7 +282,7 @@ class CodeGenVisitor(visit.DFSVisitor):
             ste.assign_to_lexeme(self.main.basic_blocks[-1], op1.name)
         else:
             # TODO fix this bs lol
-            self.add_line(f"%{self.reg_num} = add {op1.type} 0, {op1.const_value}")
+            self.add_line(instr.Add(self.reg_num, op1.type, ir_helpers.Expr(None, "i32", 0), op1))
             ste.assign_to_lexeme(self.main.basic_blocks[-1], self.reg_num)
             self.reg_num += 1
 
@@ -357,7 +308,7 @@ class CodeGenVisitor(visit.DFSVisitor):
                 looking_at = list(looking_at.predecessors)[0]
 
         try:
-            self.exp_stack.append(Expr(ir_name_to_use, node.type))
+            self.exp_stack.append(ir_helpers.Expr(ir_name_to_use, node.type))
         except UnboundLocalError as e:
             print(node.symbol)
             print(ste.ir_names)
@@ -376,7 +327,7 @@ class CodeGenVisitor(visit.DFSVisitor):
         #self.add_line("store i32 {}, i32* %{}".format(node.symbol.value, self.reg_num))
         #self.reg_num += 1
         #self.add_line("%{} = load i32, i32* %{}, align 4".format(self.reg_num, self.reg_num - 1))
-        self.exp_stack.append(Expr(None, "i32", node.symbol.value))
+        self.exp_stack.append(ir_helpers.Expr(None, "i32", node.symbol.value))
         #self.reg_num += 1
 
     def _out_bool_literal(self, node):
@@ -385,49 +336,49 @@ class CodeGenVisitor(visit.DFSVisitor):
         #self.add_line("store i1 {}, i1* %{}".format(bool_value, self.reg_num))
         #self.reg_num += 1
         #self.add_line("%{} = load i1, i1* %{}, align 4".format(self.reg_num, self.reg_num - 1))
-        self.exp_stack.append(Expr(None, "i1", bool_value))
+        self.exp_stack.append(ir_helpers.Expr(None, "i1", bool_value))
         #self.reg_num += 1
 
     def _out_equality_exp(self, node):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
-        self.add_line(f"%{self.reg_num} = icmp eq i32 {op1.get_name_or_value()}, {op2.get_name_or_value()}")
-        self.exp_stack.append(Expr(self.reg_num, "i1"))
+        self.add_line(instr.Compare(self.reg_num, "eq", op1.type, op1, op2))
+        self.exp_stack.append(ir_helpers.Expr(self.reg_num, "i1"))
         self.reg_num += 1
 
     def _out_less_than_exp(self, node):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
-        self.add_line(f"%{self.reg_num} = icmp slt i32 {op1.get_name_or_value()}, {op2.get_name_or_value()}")
-        self.exp_stack.append(Expr(self.reg_num, "i1"))
+        self.add_line(instr.Compare(self.reg_num, "slt", op1.type, op1, op2))
+        self.exp_stack.append(ir_helpers.Expr(self.reg_num, "i1"))
         self.reg_num += 1
 
     def _out_greater_than_exp(self, node):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
-        self.add_line(f"%{self.reg_num} = icmp sgt i32 {op1.get_name_or_value()}, {op2.get_name_or_value()}")
-        self.exp_stack.append(Expr(self.reg_num, "i1"))
+        self.add_line(instr.Compare(self.reg_num, "sgt", op1.type, op1, op2))
+        self.exp_stack.append(ir_helpers.Expr(self.reg_num, "i1"))
         self.reg_num += 1
 
     def _out_plus_exp(self, node):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
-        self.add_line(f"%{self.reg_num} = add i32 {op1.get_name_or_value()}, {op2.get_name_or_value()}")
-        self.exp_stack.append(Expr(self.reg_num, "i32"))
+        self.add_line(instr.Add(self.reg_num, "i32", op1, op2))
+        self.exp_stack.append(ir_helpers.Expr(self.reg_num, "i32"))
         self.reg_num += 1
 
     def _out_minus_exp(self, node):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
-        self.add_line(f"%{self.reg_num} = sub i32 {op1.get_name_or_value()}, {op2.get_name_or_value()}")
-        self.exp_stack.append(Expr(self.reg_num, "i32"))
+        self.add_line(instr.Subtract(self.reg_num, "i32", op1, op2))
+        self.exp_stack.append(ir_helpers.Expr(self.reg_num, "i32"))
         self.reg_num += 1
 
     def _out_times_exp(self, node):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
-        self.add_line(f"%{self.reg_num} = mul i32 {op1.get_name_or_value()}, {op2.get_name_or_value()}")
-        self.exp_stack.append(Expr(self.reg_num, "i32"))
+        self.add_line(instr.Multiply(self.reg_num, "i32", op1, op2))
+        self.exp_stack.append(ir_helpers.Expr(self.reg_num, "i32"))
         self.reg_num += 1
 
     def _out_input_exp(self, node):
@@ -450,14 +401,14 @@ class CodeGenVisitor(visit.DFSVisitor):
           ret i32 %6
         }
         """
-        self.add_line("%{} = alloca [2 x i8], align 1".format(self.reg_num))
+        self.add_line(instr.Allocate(self.reg_num, "[2 x i8]", 1))
         self.reg_num += 1
-        self.add_line("%{} = getelementptr inbounds [2 x i8], [2 x i8]* %{}, i32 0, i32 0".format(self.reg_num, self.reg_num - 1))
+        self.add_line(instr.GetElementPtr(self.reg_num, "[2 x i8]", self.reg_num - 1, 0, 0))
         self.reg_num += 1
-        self.add_line('%{} = call i32 asm sideeffect "movl $$0x00000000, %edi\\0Amovl $$0x00000002, %edx\\0Amovl $$0, %eax\\0Asyscall\\0A", "={{ax}},{{si}},~{{dirflag}},~{{fpsr}},~{{flags}}"(i8* %{})'.format(self.reg_num, self.reg_num - 1))
+        self.add_line(instr.CallAsm(self.reg_num, "i32", self.reg_num - 1))
         self.reg_num += 1
-        self.add_line("%{} = load i8, i8* %{}, align 1".format(self.reg_num, self.reg_num - 2))
+        self.add_line(instr.Load(self.reg_num, "i8", self.reg_num - 2, 1))
         self.reg_num += 1
-        self.add_line("%{} = sext i8 %{} to i32".format(self.reg_num, self.reg_num - 1))
-        self.exp_stack.append(Expr(self.reg_num, "i32"))
+        self.add_line(instr.SignExtend(self.reg_num, "i8", self.reg_num - 1, "i32"))
+        self.exp_stack.append(ir_helpers.Expr(self.reg_num, "i32"))
         self.reg_num += 1
