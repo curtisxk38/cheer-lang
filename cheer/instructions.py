@@ -1,6 +1,19 @@
 from cheer import ir_helpers
 
 
+class DummyWhile:
+    '''
+    dummy instruction needed for while loop ir generation
+    '''
+    def __init__(self, old, new, ste):
+        self.old = old
+        self.new = new
+        self.ste = ste
+
+    def to_llvm_ir(self):
+        return f"%{self.new} = %{self.old}"
+
+
 class Branch:
     def __init__(self, bb: 'ir_helpers.BasicBlock'):
         self.bb = bb

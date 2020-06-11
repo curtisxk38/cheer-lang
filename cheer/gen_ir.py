@@ -153,7 +153,6 @@ class CodeGenVisitor(visit.DFSVisitor):
             # lets deal with the phi
             phi = self.phi_stack.pop()
             for lexeme, ste in phi.map.items():
-                print(ste.ir_names)
                 recent_bb, recent_ir_name = ste.ir_names.pop()
                 if ste.ir_names[-1][0] == if_body:
                     _, next_ir_name = ste.ir_names.pop()
@@ -206,37 +205,96 @@ class CodeGenVisitor(visit.DFSVisitor):
 
         self.add_line(instr.Branch(while_condition))
 
+        # gen code of while condition
+        ####################################
+        self.main.basic_blocks.append(while_condition)
+
+        self.vars_used_in_while: List[symbol_table.STE] = []
+        # we are going to undo delete this code in a second
+        # need to be able to restore old reg num
+        old_reg_num = self.reg_num
+        self.visit_node(node.children[0])
+        var_used = self.vars_used_in_while
+        # clean this up
+        self.vars_used_in_while = None
+        self.reg_num = old_reg_num
+
+        # lol this is so bad
+        # delete the code that was just generated
+        # we really only did that visit of the child to see what vars it touched
+        while_condition.lines = []
+        for ste in var_used:
+            bb, reg_num = ste.ir_names[-1]
+            dummy = instr.DummyWhile(reg_num, self.reg_num, ste)
+            ste.assign_to_lexeme(while_condition, self.reg_num)
+            self.reg_num += 1
+            self.add_line(dummy)
+            
+        # now actually gen code for condition
+        self.visit_node(node.children[0])
+
+        # condition expression var
+        con_exp = self.exp_stack.pop()
+        self.add_line(instr.ConditionalBranch(con_exp, while_body, while_end))
+        
+        ####################################
+
         # gen code for while body
+        ####################################
         # set up Phi statement for assignments in while body
         self.phi_stack.append(Phi())
         self.main.basic_blocks.append(while_body)
         self.visit_node(node.children[1])
         # jump to condition bb
         self.add_line(instr.Branch(while_condition))
+        ####################################
 
-        # gen code of while condition
-        self.vars_used_in_while = []
-        self.main.basic_blocks.append(while_condition)
+        # go back and do phis
         phi = self.phi_stack.pop()
         for lexeme, ste in phi.map.items():
-            body_bb, body_ir = ste.ir_names.pop()
-            entry_bb, entry_ir = ste.ir_names[-1]
+            for index, dummy in enumerate(while_condition.lines):
+                if isinstance(dummy, instr.DummyWhile):
+                    if dummy.ste == ste:
+                        body_bb, body_ir = ste.ir_names.pop()
+                        # not the last one, but the one before last
+                        # in order to ignore the dummy entry that was created
+                        entry_bb, entry_ir = ste.ir_names[-2]
 
-            self.add_line(instr.Phi(
-                        self.reg_num, ste.node.type,
-                        entry_ir, entry_bb,
-                        body_ir, body_bb
-                    ))
+                        # TODO add type?
+                        entry_op = ir_helpers.Expr(entry_ir, None)
+                        body_op = ir_helpers.Expr(body_ir, None)
 
-            ste.assign_to_lexeme(self.main.basic_blocks[-1], self.reg_num)
-            self.reg_num += 1
+                        phi_instr = instr.Phi(
+                                        dummy.new, ste.node.type,
+                                        entry_op, entry_bb,
+                                        body_op, body_bb
+                                    )
 
-        self.visit_node(node.children[0])
-        # condition expression var
-        con_exp = self.exp_stack.pop()
-        self.add_line(instr.ConditionalBranch(con_exp, while_body, while_end))
-        
-        self.vars_used_in_while = None
+                        while_condition.lines[index] = phi_instr
+
+                        ste.ir_names[-2] = (while_condition, dummy.new)
+                    else:
+                        # dummy ste lexeme was never used in the body
+                        # generate a dummy phi
+
+                        # not the last one, but the one before last
+                        # in order to ignore the dummy entry that was created
+                        entry_bb, entry_ir = dummy.ste.ir_names[-2]
+
+                        entry_op = ir_helpers.Expr(entry_ir, None)
+                        body_op = ir_helpers.Expr(entry_ir, None)
+
+                        phi_instr = instr.Phi(
+                                        dummy.new, dummy.ste.node.type,
+                                        entry_op, entry_bb,
+                                        body_op, while_body
+                                    )
+
+                        while_condition.lines[index] = phi_instr
+
+                        dummy.ste.ir_names[-2] = (while_condition, dummy.new)
+
+
 
         # gen code for while end
         self.main.basic_blocks.append(while_end)

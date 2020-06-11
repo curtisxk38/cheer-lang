@@ -40,11 +40,11 @@ condition BB <--
    br label %while_con1
 
  while_body1:
-   %4 = add i32 %5, 1                   	; %4 = %1 + 1 ; y = y + 1
+   %4 = add i32 %5, 1                   	; %4 = %5 + 1 ; y = y + 1
    br label %while_con1					; jump to while_con1
 
  while_con1:
-   %5 = phi i32 [%1, %entry], [%4, %while_body1]
+   %5 = phi i32 [%1, %entry], [%4, %while_body1] ; %5 = %1 if from entry, %4 if from while_body
    %6 = icmp slt i32 %5, %3
    br i1 %6, label %while_body1, label %while_end1
 

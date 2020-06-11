@@ -50,7 +50,7 @@ class STE:
         self.ir_names: List[Tuple[ir_helpers.BasicBlock, str]] = []
 
     def __repr__(self):
-        return str(f"<{self.node}, Scopes: {self.assigned_scopes}>")
+        return str(f"STE<{self.node}, Scopes: {self.assigned_scopes}>")
 
     def assign_in_scope(self, scope: Scope):
         self.assigned_scopes.add(scope)
