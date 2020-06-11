@@ -47,7 +47,7 @@ class STE:
         # for IR gen, list of names
         # its a stack for the scopes this lexeme is used in
         # tuple of (Scope, register_name)
-        self.ir_names: List[Tuple['gen_ir.BasicBlock', str]] = []
+        self.ir_names: List[Tuple[ir_helpers.BasicBlock, str]] = []
 
     def __repr__(self):
         return str(f"<{self.node}, Scopes: {self.assigned_scopes}>")
@@ -63,7 +63,7 @@ class STE:
         return False
 
     # used in IR gen, not type checking
-    def assign_to_lexeme(self, basic_block: 'gen_ir.BasicBlock', ir_name: str):
+    def assign_to_lexeme(self, basic_block: ir_helpers.BasicBlock, ir_name: str):
         # if there is an entry in ir_names
         # and the most recent entry has the same bb as the parameter
         if len(self.ir_names) > 0 and self.ir_names[-1][0] == basic_block:
