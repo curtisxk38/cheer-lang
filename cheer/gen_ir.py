@@ -342,21 +342,21 @@ class CodeGenVisitor(visit.DFSVisitor):
     def _out_equality_exp(self, node):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
-        self.add_line(instr.Compare(self.reg_num, op1.type, "eq", op1, op2))
+        self.add_line(instr.Compare(self.reg_num, "eq", op1.type, op1, op2))
         self.exp_stack.append(ir_helpers.Expr(self.reg_num, "i1"))
         self.reg_num += 1
 
     def _out_less_than_exp(self, node):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
-        self.add_line(instr.Compare(self.reg_num, op1.type, "slt", op1, op2))
+        self.add_line(instr.Compare(self.reg_num, "slt", op1.type, op1, op2))
         self.exp_stack.append(ir_helpers.Expr(self.reg_num, "i1"))
         self.reg_num += 1
 
     def _out_greater_than_exp(self, node):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
-        self.add_line(instr.Compare(self.reg_num, op1.type, "sgt", op1, op2))
+        self.add_line(instr.Compare(self.reg_num, "sgt", op1.type, op1, op2))
         self.exp_stack.append(ir_helpers.Expr(self.reg_num, "i1"))
         self.reg_num += 1
 
