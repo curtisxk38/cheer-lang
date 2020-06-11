@@ -1,7 +1,7 @@
 import collections
 from typing import Dict, List, Set, Tuple
 
-from cheer import ast, gen_ir
+from cheer import ast, gen_ir, ir_helpers
 
 
 class SymbolTableError(Exception):

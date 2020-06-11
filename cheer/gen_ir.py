@@ -172,11 +172,17 @@ class CodeGenVisitor(visit.DFSVisitor):
                         raise ValueError(f"predecessors should be 2")
                     next_bb = predecessors[0]
 
-                    self.add_line(instr.Phi(
+                    # TODO add type?
+                    op1 = ir_helpers.Expr(recent_ir_name, None)
+                    op2 = ir_helpers.Expr(next_ir_name, None)
+
+                    phi_instr = instr.Phi(
                         self.reg_num, ste.node.type,
-                        recent_ir_name, recent_bb,
-                        next_ir_name, next_bb
-                    ))
+                        op1, recent_bb,
+                        op2, next_bb
+                    )
+
+                    self.add_line(phi_instr)
                     ste.assign_to_lexeme(self.main.basic_blocks[-1], self.reg_num)
                     self.reg_num += 1
                 elif len(if_else_end.predecessors) == 1:
@@ -336,21 +342,21 @@ class CodeGenVisitor(visit.DFSVisitor):
     def _out_equality_exp(self, node):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
-        self.add_line(instr.Compare(self.reg_num, "eq", op1, op2))
+        self.add_line(instr.Compare(self.reg_num, op1.type, "eq", op1, op2))
         self.exp_stack.append(ir_helpers.Expr(self.reg_num, "i1"))
         self.reg_num += 1
 
     def _out_less_than_exp(self, node):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
-        self.add_line(instr.Compare(self.reg_num, "slt", op1, op2))
+        self.add_line(instr.Compare(self.reg_num, op1.type, "slt", op1, op2))
         self.exp_stack.append(ir_helpers.Expr(self.reg_num, "i1"))
         self.reg_num += 1
 
     def _out_greater_than_exp(self, node):
         op2 = self.exp_stack.pop()
         op1 = self.exp_stack.pop()
-        self.add_line(instr.Compare(self.reg_num, "sgt", op1, op2))
+        self.add_line(instr.Compare(self.reg_num, op1.type, "sgt", op1, op2))
         self.exp_stack.append(ir_helpers.Expr(self.reg_num, "i1"))
         self.reg_num += 1
 
@@ -397,7 +403,7 @@ class CodeGenVisitor(visit.DFSVisitor):
         """
         self.add_line(instr.Allocate(self.reg_num, "[2 x i8]", 1))
         self.reg_num += 1
-        self.add_line(instr.GetElementPtr(reg_num, "[2 x i8]", self.reg_num - 1, 0, 0))
+        self.add_line(instr.GetElementPtr(self.reg_num, "[2 x i8]", self.reg_num - 1, 0, 0))
         self.reg_num += 1
         self.add_line(instr.CallAsm(self.reg_num, "i32", self.reg_num - 1))
         self.reg_num += 1

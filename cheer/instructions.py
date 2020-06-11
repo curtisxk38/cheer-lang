@@ -27,8 +27,8 @@ class Phi:
         self.bb2 = bb2
 
     def to_llvm_ir(self):
-        return f"%{self.lhs} = phi {self.type} [{self.op1.get_name_or_value()}, {self.bb1.name}], \
-            [{self.op2, self.bb2.name.get_name_or_value()}]"
+        return f"%{self.lhs} = phi {self.type} [{self.op1.get_name_or_value()}, %{self.bb1.name}]," + \
+            f" [{self.op2.get_name_or_value()}, %{self.bb2.name}]"
 
 class Return:
     def __init__(self, type_, op: 'ir_helpers.Expr'):

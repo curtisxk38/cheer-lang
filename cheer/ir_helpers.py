@@ -52,6 +52,6 @@ class Expr:
 
     def __repr__(self):
         if self.name is not None:
-            return f"%{self.name}: {self.type}"
-        return f"_: {self.type} = {self.const_value}"
+            return f"Expr<%{self.name}: {self.type}>"
+        return f"Expr<value: {self.type} = {self.const_value}>"
 
